@@ -92,42 +92,6 @@ $VLT$ holders control:
 - Treasury allocation
 - Protocol upgrades
 
----
-
-## Quick Start
-
-```bash
-# Clone
-git clone https://github.com/xelis-vault
-cd xelis-vault
-
-# Setup devnet
-chmod +x scripts/setup-devnet.sh
-./scripts/setup-devnet.sh
-
-# Deploy contracts
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh
-
-# Start dashboard
-cd dashboard && npm install && npm start
-```
-
----
-
-## Budget
-
-| Item | Cost |
-|------|------|
-| Smart contract code | $0 (Silex/XVM) |
-| Devnet/testnet | $0 |
-| Domain (optional) | ~$10/year |
-| VPS (optional) | ~$5/month |
-| XEL for mainnet deploy | ~$20 |
-| **Total runway (6 months)** | **~$50** |
-
----
-
 ## License
 
 MIT
