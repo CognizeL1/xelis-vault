@@ -1,0 +1,20 @@
+{
+  "name": "xelis-vault",
+  "version": "1.0.0",
+  "description": "Confidential Lending Protocol on XELIS BlockDAG",
+  "private": true,
+  "scripts": {
+    "setup": "bash scripts/setup-devnet.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:full": "bash scripts/deploy-full.sh",
+    "bot": "cd bot && npx ts-node src/index.ts",
+    "dashboard": "cd dashboard && npm start",
+    "sdk:build": "cd sdk && npx tsc",
+    "test": "cd test && echo 'Tests TBD'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xelis-vault"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,88 @@
+const TIMELOCK_DELAY: u64 = 60
+
+struct PendingPrice {
+    asset: Hash,
+    price: u64,
+    timestamp: u64
+}
+
+struct Price {
+    asset: Hash,
+    price: u64,
+    last_update: u64
+}
+
+const PRICES_KEY: string = "prices"
+const PENDING_KEY: string = "pending_price"
+const ADMIN_KEY: string = "admin"
+
+hook constructor() -> u64 {
+    let storage: Storage = Storage::new();
+    storage.store(ADMIN_KEY, get_caller().expect("no caller"));
+    return 0;
+}
+
+fn is_admin(addr: Address) -> bool {
+    let storage: Storage = Storage::new();
+    let admin: Address = storage.load(ADMIN_KEY).expect("admin not set");
+    return addr == admin;
+}
+
+entry set_price(asset: Hash, price: u64) -> u64 {
+    let caller: Address = get_caller().expect("no caller");
+    require(is_admin(caller), "not admin");
+
+    let pending: PendingPrice = PendingPrice {
+        asset: asset,
+        price: price,
+        timestamp: Block::current().timestamp()
+    };
+    let storage: Storage = Storage::new();
+    storage.store(PENDING_KEY, pending);
+    return 0;
+}
+
+entry execute_price() -> u64 {
+    let storage: Storage = Storage::new();
+    let pending: PendingPrice = storage.load(PENDING_KEY).expect("no pending price");
+    let now: u64 = Block::current().timestamp();
+    require(now >= pending.timestamp + TIMELOCK_DELAY, "timelock not expired");
+
+    let prices: map<Hash, Price> = storage.load(PRICES_KEY).unwrap_or({});
+    let price_entry: Price = Price {
+        asset: pending.asset,
+        price: pending.price,
+        last_update: now
+    };
+    prices.insert(pending.asset, price_entry);
+    storage.store(PRICES_KEY, prices);
+    storage.delete(PENDING_KEY);
+    return 0;
+}
+
+entry get_price(asset: Hash) -> u64 {
+    let storage: Storage = Storage::new();
+    let prices: map<Hash, Price> = storage.load(PRICES_KEY).expect("prices not set");
+    let price_entry: Price = prices.get(asset).expect("price not found for asset");
+    return price_entry.price;
+}
+
+entry has_price(asset: Hash) -> bool {
+    let storage: Storage = Storage::new();
+    let prices: optional<map<Hash, Price>> = storage.load(PRICES_KEY);
+    if prices.is_none() { return false; }
+    return prices.unwrap().contains_key(asset);
+}
+
+entry get_pending_price() -> optional<PendingPrice> {
+    let storage: Storage = Storage::new();
+    return storage.load(PENDING_KEY);
+}
+
+entry transfer_admin(new_admin: Address) -> u64 {
+    let caller: Address = get_caller().expect("no caller");
+    require(is_admin(caller), "not admin");
+    let storage: Storage = Storage::new();
+    storage.store(ADMIN_KEY, new_admin);
+    return 0;
+}

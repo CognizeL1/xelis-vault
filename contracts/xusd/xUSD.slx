@@ -1,0 +1,123 @@
+const XUSD_NAME: string = "xUSD Savings Stablecoin"
+const XUSD_TICKER: string = "xUSD"
+const MAX_SUPPLY: u64 = 0
+const SAVINGS_RATE_KEY: string = "savings_rate"
+const VAULT_CONTRACT_KEY: string = "vault_contract"
+const SAVINGS_BALANCES_KEY: string = "savings_balances"
+
+struct SavingsBalance {
+    amount: u64,
+    last_update_topo: u64,
+    accumulated: u64
+}
+
+hook constructor() -> u64 {
+    let storage: Storage = Storage::new();
+    storage.store(SAVINGS_RATE_KEY, 500);
+    return 0;
+}
+
+fn require_vault() {
+    let storage: Storage = Storage::new();
+    let vault_hash: Hash = storage.load(VAULT_CONTRACT_KEY).expect("vault not set");
+    let caller_hash: Hash = get_contract_hash();
+    require(caller_hash == vault_hash, "only vault can call");
+}
+
+entry init(asset_hash: Hash) -> u64 {
+    let storage: Storage = Storage::new();
+    storage.store(VAULT_CONTRACT_KEY, asset_hash);
+    return 0;
+}
+
+entry mint(to: Address, amount: u64) -> u64 {
+    require_vault();
+    require(amount > 0, "amount must be > 0");
+    let asset: Asset = Asset::get_by_hash(get_contract_hash());
+    asset.mint(to, amount);
+    return 0;
+}
+
+entry burn(from: Address, amount: u64) -> u64 {
+    require_vault();
+    require(amount > 0, "amount must be > 0");
+    let ok: bool = burn(amount, get_contract_hash());
+    require(ok, "burn failed");
+    return 0;
+}
+
+entry set_savings_rate(rate_bps: u64) -> u64 {
+    let storage: Storage = Storage::new();
+    let caller: Address = get_caller().expect("no caller");
+    let owner: Address = Address::from_string("admin");
+    require(caller == owner, "not authorized");
+    storage.store(SAVINGS_RATE_KEY, rate_bps);
+    return 0;
+}
+
+fn accrue_savings(user: Address) -> SavingsBalance {
+    let storage: Storage = Storage::new();
+    let savings_key: string = SAVINGS_BALANCES_KEY + user.to_string();
+    let balance: optional<SavingsBalance> = storage.load(savings_key);
+    let sb: SavingsBalance;
+    if balance.is_some() {
+        sb = balance.unwrap();
+    } else {
+        sb = SavingsBalance { amount: 0, last_update_topo: get_current_topoheight(), accumulated: 0 };
+    }
+    return sb;
+}
+
+entry deposit_savings(amount: u64) -> u64 {
+    require(amount > 0, "amount must be > 0");
+    let caller: Address = get_caller().expect("no caller");
+    let deposit: optional<u64> = get_deposit_for_asset(get_contract_hash());
+    require(deposit.is_some() && deposit.unwrap() >= amount, "insufficient deposit");
+
+    let storage: Storage = Storage::new();
+    let savings_key: string = SAVINGS_BALANCES_KEY + caller.to_string();
+    let sb: SavingsBalance = accrue_savings(caller);
+    sb.amount += amount;
+    sb.last_update_topo = get_current_topoheight();
+    storage.store(savings_key, sb);
+
+    fire_rpc_event(10, [caller, amount, "savings_deposit"]);
+    return sb.amount;
+}
+
+entry withdraw_savings(amount: u64) -> u64 {
+    require(amount > 0, "amount must be > 0");
+    let caller: Address = get_caller().expect("no caller");
+
+    let storage: Storage = Storage::new();
+    let savings_key: string = SAVINGS_BALANCES_KEY + caller.to_string();
+    let sb: SavingsBalance = accrue_savings(caller);
+    require(sb.amount >= amount, "insufficient savings balance");
+
+    sb.amount -= amount;
+    sb.last_update_topo = get_current_topoheight();
+    storage.store(savings_key, sb);
+
+    let total_earned: u64 = sb.accumulated * amount / (sb.amount + amount + 1);
+
+    let transfer_ok: bool = transfer(caller, amount + total_earned, get_contract_hash());
+    require(transfer_ok, "transfer failed");
+
+    fire_rpc_event(11, [caller, amount, "savings_withdraw"]);
+    return sb.amount;
+}
+
+entry get_savings_info(user: Address) -> SavingsBalance {
+    let storage: Storage = Storage::new();
+    let savings_key: string = SAVINGS_BALANCES_KEY + user.to_string();
+    let sb: optional<SavingsBalance> = storage.load(savings_key);
+    if sb.is_some() {
+        return sb.unwrap();
+    }
+    return SavingsBalance { amount: 0, last_update_topo: get_current_topoheight(), accumulated: 0 };
+}
+
+entry get_savings_rate() -> u64 {
+    let storage: Storage = Storage::new();
+    return storage.load(SAVINGS_RATE_KEY).unwrap_or(0);
+}

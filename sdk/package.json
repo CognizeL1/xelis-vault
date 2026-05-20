@@ -1,0 +1,15 @@
+{
+  "name": "@xelis-vault/sdk",
+  "version": "1.0.0",
+  "description": "XELIS Vault TypeScript SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "node-fetch": "^2.6.0"
+  }
+}

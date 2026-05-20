@@ -1,0 +1,18 @@
+{
+  "name": "@xelis-vault/bot",
+  "version": "1.0.0",
+  "description": "XELIS Vault Liquidation Bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  }
+}
