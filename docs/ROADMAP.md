@@ -8,8 +8,8 @@
 
 | Task | Status |
 |------|--------|
-| GitHub repo setup | 🔲 | 
-| Devnet environment | 🔲 | 
+| GitHub repo setup | 👷 | 
+| Devnet environment | 👷 | 
 | Whitepaper v1 | ✅ | 
 | Architecture docs | ✅ |
 | Smart contract skeletons | ✅ |
@@ -22,8 +22,8 @@
 | xUSD Confidential Asset | ✅ |
 | InterestRateModel.slx | ✅ |
 | PriceOracle.slx | ✅ |
-| Deploy & test on devnet | 🔲 | 
-| Debug & iterate | 🔲 |
+| Deploy & test on devnet | 👷 | 
+| Debug & iterate | 👷 |
 
 **Milestone**: Single-asset lending working on devnet
 
