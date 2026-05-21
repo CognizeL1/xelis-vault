@@ -8,12 +8,12 @@
 
 | Task | Status |
 |------|--------|
-| Whitepaper v1 | ✅ |
+| Whitepaper v2 | ✅ |
 | Architecture docs | ✅ |
-| Smart contract design | ✅ |
+| Core smart contracts | ✅ |
 | Devnet environment | ✅ |
 
-## Phase 1: Core Vault ✅
+## Phase 1: Core Lending 🚧
 
 | Task | Status |
 |------|--------|
@@ -21,64 +21,83 @@
 | xUSD Confidential Asset — mint & burn | ✅ Live on devnet |
 | InterestRateModel — kinked rates | ✅ Live on devnet |
 | PriceOracle — XEL price feed | ✅ Live on devnet |
-| Deploy & test full lifecycle | ✅ Verified |
-| Document VM constraints & workarounds | ✅ Documented |
-
-> **Milestone achieved** — Single-asset lending fully working on devnet with all state mutations persisting correctly.
-
-```
-Test results (all passing):
-  ✓ deposit(100000) → vault_id=1 created
-  ✓ get_vault(1)    → returns VaultSnapshot with collateral=100000
-  ✓ borrow(30000)   → borrow_plain updated to 30000
-  ✓ repay(10000)    → borrow_plain reduced to 20000
-  ✓ withdraw(50000) → collateral_plain reduced by 50000
-```
-
-## Phase 2: Yield & Automation 🚧
-
-| Task | Status |
-|------|--------|
-| Dashboard (React) | 🚧 In progress |
+| InsurancePool — stake & claim | ✅ Compiled |
+| FlashLoan — uncollateralized flash loans | ✅ Compiled |
 | TypeScript SDK | ✅ Built |
 | Liquidation Bot | ✅ Built |
-| xUSD Savings Rate | 🔲 |
-| Auto-Remining Loans | 🔲 |
-| Testnet deployment | 🔲 |
+| Dashboard (React) | 🚧 In progress |
+| CLI Tool | 🔲 |
+| Deploy & test full lifecycle on devnet | ✅ Verified |
 
-> **Next milestone** — Full lending + savings + automation on testnet
+> **Milestone achieved** — Single-asset lending fully working on devnet
 
-## Phase 3: Launch 📅
+## Phase 2: Governance & Markets 📅 (Post-VM Fix)
 
-| Task | Status |
-|------|--------|
-| Security audit | 🔲 |
-| Bug bounties | 🔲 |
-| Mainnet deployment | 🔲 |
-| Community launch | 🔲 |
-| Forge DEX xUSD/XEL pool | 🔲 |
+| Task | Timeline |
+|------|----------|
+| **VLT Governance Token** — 10M supply, confidential asset | Week 1 |
+| **GovernanceVault** — stake VLT, vote on parameters | Week 1 |
+| **Timelock** — 48h delay on all parameter changes | Week 2 |
+| **Private Lending Marketplace** — multi-pool, multi-collateral | Week 3-4 |
+| **Peer-to-Peer Lending** — bilateral confidential loans | Week 5 |
+| **Sealed-Bid Auctions** — fully confidential bidding | Week 6 |
 
-> **Next milestone** — Live on mainnet with real TVL
+> **Milestone** — Decentralized governance live + financial markets operational
+
+## Phase 3: Institutional 📅
+
+| Task | Timeline |
+|------|----------|
+| **Compliance Module** — ZK KYC/AML verification layer | Week 7-8 |
+| **Syndicated Loans** — multi-lender credit pools | Week 8-9 |
+| **Treasury Vault** — confidential multi-sig for DAOs/institutions | Week 9-10 |
+| **RWA Tokenization Standard** — AssetVault template | Week 10-11 |
+| **Private Revenue Sharing** — confidential revenue distribution | Week 12 |
+| **Private Payroll** — confidential recurring payments | Week 12 |
+
+> **Milestone** — Institutions can participate with full privacy and compliance
 
 ## Phase 4: Expansion 📅
 
-| Task | Status |
-|------|--------|
-| InsurancePool | ✅ Compiled |
-| FlashLoan | ✅ Compiled |
-| Multi-collateral support | 🔲 |
-| Governance VLT token | 🔲 |
-| DeFi composability (Forge DEX) | 🔲 |
+| Task | Timeline |
+|------|----------|
+| **Private Insurance & Derivatives** — P2P risk markets | Week 13-14 |
+| **Multi-Collateral Support** — borrow against any asset | Week 14-15 |
+| **Forge DEX Integration** — xUSD/XEL liquidity pool | Week 15-16 |
+| **Testnet Launch** — full ecosystem on testnet | Week 16 |
 
-## Phase 5: Dominance 📅
+> **Milestone** — Full platform live and tested on testnet
 
-| Task | Status |
-|------|--------|
-| Cross-chain xUSD (Trocador) | 🔲 |
-| Position NFTs | 🔲 |
-| Credit scores | 🔲 |
-| Full DAO governance | 🔲 |
-| Institutional API | 🔲 |
+## Phase 5: Mainnet & Beyond 📅
+
+| Task | Timeline |
+|------|----------|
+| **Security Audit** — professional smart contract audit | Q3 2026 |
+| **Bug Bounties** — community security rewards | Q3 2026 |
+| **Mainnet Launch** — full protocol on XELIS mainnet | Q3 2026 |
+| **Cross-Chain xUSD** — via Trocador bridge | Q3 2026 |
+| **Position NFTs** — tradeable debt positions | Q3 2026 |
+| **Credit Scores** — under-collateralized lending | Q3 2026 |
+| **Full DAO Governance** — on-chain proposal system | Q3 2026 |
+| **Institutional API** — programmatic access for funds | Q4 2026 |
+
+> **Milestone** — Live on mainnet with real TVL and institutional adoption
+
+---
+
+## Current Sprint
+
+### Pre-Fix (awaiting VM upgrade May 30)
+- [x] Dashboard React (UI components)
+- [ ] CLI Tool
+- [ ] SDK expansion
+- [ ] Deployment scripts
+
+### Post-Fix (immediately after May 30)
+- [ ] Deploy secured VaultEngine to testnet
+- [ ] Deploy VLT + GovernanceVault + Timelock
+- [ ] Validate get_caller/require work correctly
+- [ ] Deploy LendingMarket prototype
 
 ---
 

@@ -1,102 +1,121 @@
 # XELIS Vault — Technical Whitepaper
 
-> **Version 1.0 — Confidential Lending on XELIS BlockDAG**
+> **Version 2.0** — *The First Confidential Financial Platform on XELIS BlockDAG*
 >
-> *World's first private overcollateralized lending protocol using native homomorphic encryption*
+> *Confidential lending, tokenization, treasury, compliance, and markets — powered by native homomorphic encryption*
 
 ---
 
 ## Abstract
 
-XELIS Vault is a decentralized, non-custodial lending protocol built on the XELIS BlockDAG. It leverages XELIS native **Twisted ElGamal homomorphic encryption** to provide the first truly confidential lending market in blockchain history. Users can deposit XEL as collateral, borrow xUSD (a privacy-preserving stablecoin), earn yield on xUSD savings, and access flash loans — all while keeping their positions completely private.
+XELIS Vault is a decentralized financial platform built on the XELIS BlockDAG. It leverages XELIS native **Twisted ElGamal homomorphic encryption** to provide the first truly confidential financial ecosystem in blockchain history.
 
-No existing lending protocol (Aave, Compound, Morpho) offers this level of privacy. XELIS Vault fills this gap by building directly on XELIS unique cryptographic primitives.
+The platform encompasses:
+- **Confidential Lending** — overcollateralized loans with private positions
+- **Private Lending Marketplace** — multi-pool, multi-collateral lending with dynamic rates
+- **Real-World Asset (RWA) Tokenization** — standard for issuing private tokens representing real assets
+- **Private Treasury Management** — multi-signature confidential treasuries for DAOs and institutions
+- **Private Syndicated Loans** — multi-lender, single-borrower credit pools
+- **Private Peer-to-Peer Lending** — bilateral loans with custom terms
+- **Compliance & Identity Layer** — ZK-based KYC/AML proofs without exposing identity
+- **Private Sealed-Bid Auctions** — fully confidential bidding
+- **Private Revenue Sharing & Payroll** — confidential recurring payments
+- **Private Insurance & Derivatives** — peer-to-peer risk markets
+- **Governance Token (VLT)** — protocol ownership, parameter voting, and revenue distribution
+
+No existing platform (Aave, Compound, Maker, Morpho) offers this combination of privacy, breadth, and institutional readiness.
 
 ---
 
 ## 1. Introduction
 
-### 1.1 The Privacy Gap in DeFi Lending
+### 1.1 The Privacy Gap in DeFi
 
-Current DeFi lending protocols operate on fully transparent ledgers:
+Current DeFi operates on fully transparent ledgers. Every position, liquidation, and transfer is visible to everyone — including MEV bots, competitors, and regulators.
 
-- **Aave**: $20B+ TVL — every position, liquidation, and interest payment is public
-- **Compound**: $3B+ TVL — same transparent model
-- **Morpho**: $1.5B+ TVL — peer-to-peer but fully visible
+This transparency creates fundamental problems:
+- **Front-running and MEV** — bots extract value from public transactions
+- **Institutional exclusion** — regulated entities cannot reveal their positions
+- **Privacy loss** — financial history is permanently public
+- **Competitive disadvantage** — strategies, leverage, and holdings are exposed
 
-This transparency creates problems:
-- **Front-running**: MEV bots watch for large deposits or liquidation opportunities
-- **Institutional reluctance**: Funds cannot reveal their positions publicly
-- **Privacy loss**: Anyone can track your financial activities forever
-- **Competitive disadvantage**: Traders expose their strategies and leverage
+### 1.2 The Opportunity
 
-### 1.2 Why XELIS
+XELIS provides the cryptographic primitives to solve this:
+- **Twisted ElGamal over Ristretto255** — homomorphic encryption at the protocol level
+- **Confidential Assets** — every token is private by default
+- **XVM + Silex** — a capable smart contract environment
+- **BlockDAG Architecture** — 5-second blocks, high throughput
 
-XELIS is uniquely positioned to solve this because:
-
-1. **Native Homomorphic Encryption**: Twisted ElGamal over Ristretto255 enables computation on encrypted data at the protocol level
-2. **Confidential Assets**: Any token on XELIS has the same privacy guarantees as XEL
-3. **XVM + Silex**: A powerful smart contract environment capable of handling complex DeFi logic
-4. **Scheduled Executions**: Protocol-level cron jobs enabling MEV-resistant operations
-5. **BlockDAG Architecture**: 5-second block times with high throughput (2500+ TPS theoretical)
+XELIS Vault is the first platform to productize these primitives into a complete, institution-grade financial ecosystem.
 
 ---
 
 ## 2. Protocol Architecture
 
-### 2.1 Smart Contracts
-
-The protocol consists of six core smart contracts:
-
-| Contract | Language | Purpose |
-|----------|----------|---------|
-| `VaultEngine.slx` | Silex | Core lending: deposit, borrow, repay, withdraw, liquidate |
-| `InterestRateModel.slx` | Silex | Dynamic rate calculation with kinked model |
-| `PriceOracle.slx` | Silex | Price feed with timelock mechanism |
-| `xUSD.slx` | Silex | Confidential stablecoin with savings rate |
-| `InsurancePool.slx` | Silex | Community-backed insurance against bad debt |
-| `FlashLoan.slx` | Silex | Confidential uncollateralized flash loans |
-
-### 2.2 System Flow
+### 2.1 Smart Contract Layers
 
 ```
-User Wallet
-    │
-    ├── 1. Deposit XEL → VaultEngine
-    │      ├── Balance encrypted with Twisted ElGamal
-    │      └── Vault position created (Ciphertext on-chain)
-    │
-    ├── 2. Borrow xUSD ← VaultEngine
-    │      ├── xUSD minted as Confidential Asset
-    │      ├── ZK RangeProof: collateral ≥ debt × 1.5
-    │      └── 0.5% protocol fee collected
-    │
-    ├── 3. Repay xUSD → VaultEngine
-    │      ├── xUSD burned
-    │      └── Debt reduced (encrypted update)
-    │
-    ├── 4. Withdraw XEL ← VaultEngine
-    │      ├── Health check (ZK) before withdrawal
-    │      └── Collateral reduced (encrypted update)
-    │
-    ├── 5. Save xUSD → xUSD Savings
-    │      └── Auto-yield accrues per block
-    │
-    ├── 6. Insurance Pool
-    │      ├── Stake XEL, earn premiums
-    │      └── Submit/execute claims
-    │
-    └── 7. Flash Loans
-           └── Borrow, execute callback, repay (same TX)
+                    ┌──────────────────────────────────────┐
+                    │           CORE LENDING               │
+                    │  VaultEngine  |  xUSD  |  FlashLoan  │
+                    └──────────────────────────────────────┘
+                    ┌──────────────────────────────────────┐
+                    │         FINANCIAL MARKETS            │
+                    │  LendingMarket  |  PeerLoan          │
+                    │  SyndicatePool  |  SealedBidAuction  │
+                    └──────────────────────────────────────┘
+                    ┌──────────────────────────────────────┐
+                    │       TOKENIZATION & TREASURY        │
+                    │  AssetVault  |  TreasuryVault        │
+                    │  RevenueShare  |  Payroll            │
+                    └──────────────────────────────────────┘
+                    ┌──────────────────────────────────────┐
+                    │       COMPLIANCE & IDENTITY          │
+                    │  ComplianceModule  |  ZK-Verifier    │
+                    └──────────────────────────────────────┘
+                    ┌──────────────────────────────────────┐
+                    │       INSURANCE & DERIVATIVES        │
+                    │  InsurancePool  |  PrivateInsurance  │
+                    └──────────────────────────────────────┘
+                    ┌──────────────────────────────────────┐
+                    │         GOVERNANCE                   │
+                    │  VLT Token  |  GovernanceVault       │
+                    │  Timelock  |  GuardianMultisig       │
+                    └──────────────────────────────────────┘
 ```
+
+### 2.2 Contract Catalog
+
+| Contract | Type | Purpose |
+|----------|------|---------|
+| `VaultEngine.slx` | Core | Overcollateralized lending (deposit, borrow, repay, withdraw, liquidate) |
+| `xUSD.slx` | Core | Privacy-preserving stablecoin |
+| `InterestRateModel.slx` | Core | Kinked interest rate calculation |
+| `PriceOracle.slx` | Core | XEL price feed with timelock |
+| `FlashLoan.slx` | Core | Confidential uncollateralized flash loans |
+| `LendingMarket.slx` | Market | Multi-pool, multi-collateral lending marketplace |
+| `PeerLoan.slx` | Market | Bilateral peer-to-peer confidential loans |
+| `SyndicatePool.slx` | Market | Multi-lender, single-borrower syndicated credit |
+| `SealedBidAuction.slx` | Market | Fully confidential sealed-bid auctions |
+| `AssetVault.slx` | Tokenization | Standard template for RWA tokenization |
+| `TreasuryVault.slx` | Treasury | Multi-signature confidential treasury management |
+| `RevenueShare.slx` | Treasury | Confidential revenue distribution |
+| `Payroll.slx` | Treasury | Private recurring payments |
+| `InsurancePool.slx` | Insurance | Community-backed insurance pool |
+| `PrivateInsurance.slx` | Insurance | Peer-to-peer insurance and derivatives |
+| `ComplianceModule.slx` | Compliance | ZK-based KYC/AML verification layer |
+| `VLT.slx` | Governance | Protocol governance token |
+| `GovernanceVault.slx` | Governance | Token staking, voting, and parameter control |
+| `Timelock.slx` | Governance | 48-hour timelock on all parameter changes |
 
 ---
 
-## 3. Core Mechanics
+## 3. Confidential Lending (Core)
 
 ### 3.1 Vault Positions
 
-Each vault position is a `VaultSnapshot` struct stored on-chain:
+Each vault is a `VaultSnapshot` stored on-chain:
 
 ```
 VaultSnapshot {
@@ -105,8 +124,8 @@ VaultSnapshot {
     borrow_asset: Hash,
     collateral_cipher: Ciphertext,   // Encrypted balance
     borrow_cipher: Ciphertext,       // Encrypted debt
-    collateral_plain: u64,           // Decrypted (for VM logic)
-    borrow_plain: u64,               // Decrypted (for VM logic)
+    collateral_plain: u64,           // Decrypted (for VM health checks)
+    borrow_plain: u64,               // Decrypted (for VM health checks)
     last_update_topo: u64,
     liquidated: bool,
     created_at: u64,
@@ -114,14 +133,14 @@ VaultSnapshot {
 }
 ```
 
-**Privacy design**: The `_cipher` fields store the actual encrypted amounts using XELIS native `Ciphertext` type. The `_plain` fields are used internally by the VM for health checks and liquidation logic. From a third-party perspective, the `_cipher` values are unreadable.
+**Privacy design:** The `_cipher` fields store encrypted amounts using XELIS native `Ciphertext` type. The `_plain` fields are used internally by the VM. From any third-party perspective, the `_cipher` values are unreadable.
 
 ### 3.2 Collateral Ratio
 
 ```
 Minimum Collateral Ratio: 150%
 Liquidation Penalty:      5%
-Protocol Fee:             0.5%
+Protocol Fee:             0.5% (borrow)
 
 Health Factor = collateral_value × 100 / borrow_value
 Liquidation at: health_factor < 150
@@ -129,143 +148,270 @@ Liquidation at: health_factor < 150
 
 ### 3.3 Interest Rate Model
 
-The protocol uses a **kinked interest rate model**, similar to Aave V2:
+Kinked model based on utilization:
 
 ```
 If utilization ≤ kink (80%):
     borrow_rate = base_rate + (utilization × multiplier / kink)
-
 If utilization > kink (80%):
     borrow_rate = base_rate + multiplier + (excess × jump_multiplier / (100 - kink))
 ```
 
-Where:
 - `base_rate`: 0.5% APR
-- `multiplier`: 10% APR (slope before kink)
-- `jump_multiplier`: 50% APR (slope after kink)
-- `kink`: 80% utilization
+- `multiplier`: 10% APR
+- `jump_multiplier`: 50% APR
+- `reserve_factor`: 10%
 
-Supply rate: `borrow_rate × utilization × (1 - reserve_factor)`
+### 3.4 Liquidations
 
-### 3.4 Liquidation Mechanism
+Liquidations are MEV-resistant through XELIS Scheduled Executions:
 
-Liquidations are **MEV-resistant** through XELIS Scheduled Executions:
-
-1. A keeper bot monitors vault health using the `is_liquidatable()` entry function
-2. When a vault becomes underwater, anyone can call `liquidate()`
-3. The liquidator repays the debt and receives collateral minus a 5% penalty
-4. The 5% penalty is burned, reducing total supply
-5. Scheduled Executions at block-end can batch liquidate multiple vaults atomically
+1. Keeper bot monitors vault health via `is_liquidatable()`
+2. Caller repays the debt, receives collateral minus 5% penalty
+3. The 5% penalty is burned, reducing total supply
+4. Scheduled Executions batch-process liquidations at block boundaries
+5. Anyone can rescue an underwater vault — the least healthy vault is targeted first
 
 ---
 
-## 4. xUSD — Privacy-Preserving Stablecoin
+## 4. xUSD — Confidential Stablecoin
 
 ### 4.1 Design
 
-xUSD is a **Confidential Asset** on XELIS, managed by the VaultEngine contract:
-
-- **Minted** when users borrow against XEL collateral
+xUSD is managed by VaultEngine:
+- **Minted** when users borrow against collateral
 - **Burned** when users repay their debt
-- **All transfers are encrypted** via XELIS native Twisted ElGamal
-- **No maximum supply** — fully elastic based on demand
+- **All balances are confidential** via native Twisted ElGamal encryption
+- **Elastic supply** — no maximum, expands and contracts with demand
 
-### 4.2 Peg Mechanism
+### 4.2 Savings Rate
 
-xUSD maintains its $1 peg through:
-
-1. **Arbitrage**: Users can borrow xUSD when price > $1, or repay debt when price < $1
-2. **Savings Rate**: Adjustable yield incentivizes holding or spending xUSD
-3. **Overcollateralization**: Every xUSD is backed by at least $1.50 of XEL
-
-### 4.3 Savings Rate
-
-The xUSD Savings Rate is a **protocol-level yield** paid to xUSD depositors:
-
+The xUSD Savings Rate is a protocol-level yield paid to xUSD depositors:
 - Depositors lock xUSD in the savings contract
 - Interest accrues automatically per block
-- Current rate is adjustable via governance
-- Allows users to earn yield on stablecoins privately
+- Rate is adjustable via governance (VLT holders)
+- Earnings are confidential — no one sees your yield
 
-```
-Example:
-Deposit:      10,000 xUSD
-Savings APR:  8%
-Time:         30 days
-Earned:       ~65.75 xUSD
-Total:        10,065.75 xUSD
-```
+### 4.3 Peg Mechanism
+
+1. **Arbitrage** — borrow xUSD when price > $1, repay when price < $1
+2. **Savings Rate** — adjustable yield incentivizes holding or spending
+3. **Overcollateralization** — every xUSD backed by at least $1.50 of XEL
 
 ---
 
-## 5. Key Innovations
+## 5. Financial Markets
 
-### 5.1 MEV-Resistant Liquidations
+### 5.1 Private Lending Marketplace
 
-Using XELIS **Scheduled Executions**, we can batch-process liquidations at block boundaries:
+The `LendingMarket.slx` contract extends VaultEngine into a multi-pool system:
 
-```
-1. Keeper identifies underwater vaults
-2. Deposits xUSD to repay debt
-3. Scheduled execution at block-end:
-   a. Processes all pending liquidations
-   b. Sorts by health factor (worst first)
-   c. Atomic execution — all or nothing
-4. No front-running possible within block
-```
+- **Liquidity Pools** — lenders deposit XEL, xUSD, or any supported token into confidential pools
+- **Dynamic Rates** — utilization-based interest per pool
+- **Multi-Collateral** — borrowers can use different assets as collateral
+- **Confidential Positions** — individual deposits and borrows are encrypted
+- **Liquidations** — automated, MEV-resistant, without revealing who is liquidated
 
-### 5.2 Confidential Flash Loans
+Unlike VaultEngine's single-asset model, the marketplace allows:
+- Lenders to earn yield by supplying liquidity
+- Borrowers to choose the best pool for their needs
+- Composability — positions can be used as collateral elsewhere
 
-Flash loans that preserve privacy:
+### 5.2 Peer-to-Peer Lending
 
-```
-1. Borrow XEL or xUSD (amount encrypted)
-2. Execute arbitrary contract call (callback)
-3. Repay loan + 0.09% fee (same TX)
-4. Amounts are encrypted at every step
-```
+`PeerLoan.slx` enables direct bilateral loans:
 
-### 5.3 Auto-Remining Loans
+1. Alice proposes a loan to Bob with terms (amount, interest rate, duration, collateral)
+2. Bob accepts and locks collateral in the contract
+3. Both the loan amount and repayment schedule are encrypted
+4. Repayments are automatic — no manual intervention needed
+5. Secondary market: Alice can sell the debt to a third party without revealing terms
 
-Users can opt-in to automatic loan repayment:
+Ideal for:
+- Personal loans between trusted parties
+- Business credit lines
+- Private debt markets
 
-```
-1. User deposits XEL and borrows xUSD
-2. Auto-remine flag = true
-3. Each block:
-   a. Protocol checks if yield from XEL mining ≥ interest due
-   b. If yes, auto-repays interest from mining rewards
-   c. Position stays healthy automatically
-4. User never needs to manually manage position
-```
+### 5.3 Syndicated Loans
 
-### 5.4 Insurance Pool
+`SyndicatePool.slx` enables multi-lender, single-borrower credit:
 
-Community-backed protection against bad debt:
+1. A lead arranger creates a syndicate with target amount, interest rate, and duration
+2. Multiple lenders commit capital confidentially
+3. When the target is reached, funds are released to the borrower
+4. Repayments are distributed proportionally to lenders
+5. All terms and positions are encrypted — only participants see their share
 
+Target market: institutional lending, real estate financing, working capital.
+
+### 5.4 Sealed-Bid Auctions
+
+`SealedBidAuction.slx` enables fully confidential bidding:
+
+1. Seller lists an asset (token, NFT, collateral position)
+2. Bidders submit encrypted offers
+3. At auction end, bids are revealed and compared
+4. Highest bidder wins, others are refunded
+5. Nothing is public — not the number of bidders, not the amounts
+
+Use cases:
+- Liquidated collateral sales (no front-running)
+- RWA secondary markets
+- Private token sales
+- Government/DAO asset sales
+
+---
+
+## 6. Tokenization & Treasury
+
+### 6.1 Real-World Asset Tokenization
+
+`AssetVault.slx` is a standardized contract for issuing confidential tokens representing real-world assets:
+
+**Core features:**
+- Deploy a new confidential token in one transaction
+- Configure name, symbol, total supply, and metadata
+- Built-in confidential transfers (Twisted ElGamal)
+- Mint/burn permissions controlled by the issuer
+- Interface for attaching off-chain proofs (audit reports, valuation certificates)
+
+**Business model:** XELIS Vault does not originate or verify RWAs — it provides the standard template. Partners (tokenization platforms, asset managers, banks) deploy and manage their own RWA tokens.
+
+**Supported asset types:**
+- Real estate (fractional ownership)
+- Commodities (gold, silver, oil)
+- Bonds and treasury bills
+- Equity and revenue shares
+- Carbon credits
+- Invoice factoring
+
+### 6.2 Private Treasury Management
+
+`TreasuryVault.slx` enables DAOs, companies, and funds to manage their assets confidentially:
+
+**Features:**
+- Multi-signature with configurable thresholds (2/3, 3/5, etc.)
+- Role-based access: owner, signer, viewer, guardian
+- Confidential balances — no one sees the treasury size
+- Encrypted transaction history — only authorized signers can audit
+- Budget allocation — assign spending limits per category
+- Vesting schedules — private, automated token distribution
+- Emergency recovery — guardian multi-sig for crisis scenarios
+
+**Use cases:**
+- DAO treasuries (no more public balance sheets)
+- Corporate treasury management
+- Venture capital funds
+- Family offices
+- Protocol-owned liquidity management
+
+### 6.3 Revenue Sharing
+
+`RevenueShare.slx` enables confidential revenue distribution:
+
+- An issuer deposits revenue into the contract
+- Shareholders receive proportional distributions
+- All amounts are encrypted — no one knows total revenue or individual payouts
+- Ideal for: creator monetization, protocol revenue distribution, partnership splits
+
+### 6.4 Private Payroll
+
+`Payroll.slx` enables confidential recurring payments:
+
+- Employer deposits funds and defines payment schedules
+- Employees receive confidential payments at each interval
+- Each employee sees only their own salary
+- Vesting cliffs and termination logic built-in
+- Use cases: corporate payroll, DAO contributor payments, subscription billing
+
+---
+
+## 7. Compliance & Identity
+
+### 7.1 Problem
+
+Institutions cannot use DeFi because they must:
+- Prove KYC/AML compliance
+- Demonstrate they are not on sanctions lists
+- Maintain audit trails
+- All without exposing sensitive business data
+
+### 7.2 Solution: ZK Compliance Layer
+
+`ComplianceModule.slx` provides a reusable compliance framework:
+
+1. A regulated verifier (e.g., licensed KYC provider) performs off-chain due diligence
+2. The verifier issues a ZK proof on-chain: "address X is compliant until date Y"
+3. The proof reveals **nothing** — not the identity, not the verifier, not the jurisdiction
+4. Any contract on XELIS can query: "is this address allowed to interact?"
+5. Users without compliance requirements can opt out entirely
+
+**Key properties:**
+- **Privacy-preserving** — no identity data ever touches the chain
+- **Interoperable** — any contract can integrate compliance checks
+- **Upgradable** — verifier set can be updated via governance
+- **Portable** — one proof works across all contracts on XELIS
+
+### 7.3 Regulatory Compatibility
+
+| Regulation | How XELIS Vault Addresses It |
+|------------|------------------------------|
+| MiCA (EU) | Verifiable compliance without exposing positions |
+| MiFID II (EU) | Confidential reporting for investment firms |
+| FATF Travel Rule | Encrypted beneficiary data with ZK verification |
+| SEC Custody Rule | Multi-sig treasury with audit trail |
+| Basel III | Institutional risk management on-chain |
+
+---
+
+## 8. Insurance & Derivatives
+
+### 8.1 Insurance Pool
+
+`InsurancePool.slx` provides community-backed protection:
 - Users stake XEL to earn insurance premiums (0.1% of all borrows)
-- When a vault cannot be liquidated (e.g., oracle failure), claims can be submitted
-- Claims are approved by governance/guardians
-- Payouts come from the pooled stake
+- Claims can be submitted when a vault cannot be liquidated
+- Claims are verified and approved by guardians
+- Payouts drawn from the pooled stake
+
+### 8.2 Private Insurance
+
+`PrivateInsurance.slx` enables peer-to-peer risk markets:
+
+- Create bilateral insurance policies with custom terms
+- Example: "I want to insure my vault against liquidation for 30 days"
+- Premiums and payouts are confidential
+- Automatic settlement — no claims process needed
+- Expandable to derivatives: private options on XEL price, settlement automatically executed
 
 ---
 
-## 6. Governance
+## 9. Governance
 
-### 6.1 VLT Token
+### 9.1 VLT Token
 
-VLT is the governance token of XELIS Vault:
+VLT is the governance and value-accrual token of XELIS Vault:
 
-- **Total Supply**: 10,000,000 VLT
-- **Distribution**:
-  - 40% Liquidity providers (farm VLT)
-  - 20% Core team (2-year vesting)
-  - 15% Protocol treasury
-  - 10% XELIS ecosystem fund
-  - 10% Early user airdrop
-  - 5% Audits & security
+| Parameter | Value |
+|-----------|-------|
+| Total Supply | 10,000,000 VLT |
+| Asset Type | Confidential Asset (XELIS native) |
+| Transfers | Encrypted by default |
 
-### 6.2 Governance Powers
+**Distribution:**
+
+| Allocation | Percentage | Vesting |
+|------------|-----------|---------|
+| Liquidity Providers | 40% | Farmed over 4 years |
+| Core Team | 20% | 2-year linear vesting |
+| Protocol Treasury | 15% | Available via governance |
+| XELIS Ecosystem Fund | 10% | Partnership grants |
+| Early User Airdrop | 10% | Claim at TGE |
+| Audits & Security | 5% | Bug bounties, audits |
+
+### 9.2 Governance Powers
+
+VLT holders control protocol parameters through `GovernanceVault.slx`:
 
 | Parameter | Scope | Initial Value |
 |-----------|-------|---------------|
@@ -279,29 +425,33 @@ VLT is the governance token of XELIS Vault:
 | Borrow Fee | Protocol | 0.5% |
 | Insurance Premium | Insurance | 0.1% |
 | Savings Rate | xUSD | Configurable |
-| Asset Whitelist | Expansion | Vault vote |
-| Oracle Source | Risk | Vault vote |
-| Emergency Pause | Security | Guardians |
+| Asset Whitelist | Expansion | Governance vote |
+| Oracle Source | Risk | Governance vote |
+| Compliance Verifiers | Identity | Guardian vote |
+| Emergency Pause | Security | Guardian multi-sig |
 
----
+### 9.3 Timelock
 
-## 7. Revenue Model
+All parameter changes pass through a 48-hour timelock (`Timelock.slx`):
+- Users have 48 hours to react before changes take effect
+- Guardians can veto malicious proposals during the timelock
+- Compatible with on-chain and off-chain voting systems
 
-### 7.1 Protocol Revenue
+### 9.4 Protocol Revenue
 
-| Source | Rate | Annualized (est. $5M TVL) |
-|--------|------|--------------------------|
-| Borrow fees | 0.5% upfront | $25,000 |
-| Interest spread | ~2% avg | $100,000 |
-| Liquidation fees | 0.5% | $5,000 |
-| Flash loan fees | 0.09% | $2,000 |
-| **Total** | | **~$132,000** |
+| Source | Rate | Allocation |
+|--------|------|------------|
+| Borrow fees | 0.5% upfront | Treasury |
+| Interest spread | ~2% avg | Treasury |
+| Liquidation fees | 0.5% | Treasury |
+| Flash loan fees | 0.09% | Treasury |
+| Insurance premiums | 0.1% | Insurance Pool |
 
-### 7.2 Revenue Allocation
+**Revenue allocation:**
 
 ```
 Revenue → Treasury
-    ├── 50% → VLT token buyback & burn
+    ├── 50% → VLT buyback & burn
     ├── 30% → Development fund
     ├── 10% → Insurance pool
     └── 10% → XELIS ecosystem partnerships
@@ -309,82 +459,149 @@ Revenue → Treasury
 
 ---
 
-## 8. Security
+## 10. Privacy Model
 
-### 8.1 Risk Mitigations
+| Data | On-Chain | Visibility |
+|------|----------|------------|
+| Vault owner | Public (Address) | Everyone |
+| Collateral amount | Encrypted (Ciphertext) | Owner only |
+| Borrow amount | Encrypted (Ciphertext) | Owner only |
+| Health factor | Computed (plaintext for VM) | No one (ZK verifiable) |
+| Peer loan terms | Encrypted | Participants only |
+| Syndicate contributions | Encrypted | Participant-only |
+| Treasury balances | Encrypted | Authorized signers only |
+| xUSD balance | Encrypted (native) | Owner only |
+| Compliance status | ZK proof | Verifier only |
+| Auction bids | Encrypted | Bidder only |
+| Revenue shares | Encrypted | Recipient only |
+| Insurance policy | Encrypted | Counterparties only |
+| Liquidations | Public (event) | Everyone |
+| Protocol fees | Public (plaintext) | Everyone |
+
+---
+
+## 11. Revenue Model
+
+| Source | Rate | Annualized (est. $10M TVL) |
+|--------|------|--------------------------|
+| Borrow fees | 0.5% upfront | $50,000 |
+| Interest spread | ~2% avg | $200,000 |
+| Liquidation fees | 0.5% | $10,000 |
+| Flash loan fees | 0.09% | $5,000 |
+| Insurance premiums | 0.1% | $10,000 |
+| **Total** | | **~$275,000** |
+
+---
+
+## 12. Security
+
+### 12.1 Risk Mitigations
 
 | Risk | Mitigation |
 |------|-----------|
-| Oracle manipulation | Timelock (1h), multiple sources (future) |
+| Oracle manipulation | Timelock (1h), multiple sources |
 | Flash loan attacks | Fee + callback verification |
 | Bad debt | Insurance pool + reserve fund |
 | Smart contract bugs | Open source, audit, bug bounties |
 | Governance attack | Timelock on all parameter changes |
 | Liquidation cascade | Gradual liquidation, Scheduled Executions |
+| Privacy leak | Homomorphic encryption + ZK proofs |
+| Sybil attacks | Compliance module for institutions |
 
-### 8.2 Emergency Procedures
+### 12.2 Emergency Procedures
 
-1. **Pause**: Guardians can pause borrowing/liquidations
-2. **Recover**: Admin functions for extreme scenarios (timelocked)
-3. **Upgrade**: Contracts are not upgradeable — new versions deployed via governance
-
----
-
-## 9. Roadmap
-
-```
-Phase 1 ──── MVP (Weeks 1-6)
-    Core VaultEngine (deposit/borrow/repay/withdraw)
-    xUSD Confidential Asset
-    Basic PriceOracle
-    InterestRateModel
-    Devnet → Testnet deployment
-
-Phase 2 ──── Growth (Weeks 7-10)
-    xUSD Savings Rate (auto-yield)
-    MEV-resistant Liquidation Bot
-    Auto-Remining Loans
-    Dashboard + SDK
-    Mainnet launch
-
-Phase 3 ──── Scale (Weeks 11-16)
-    Insurance Pool
-    Flash Loans
-    Multi-collateral support
-    Forge DEX integration
-
-Phase 4 ──── Dominance (Q3-Q4 2026)
-    Cross-chain xUSD (Trocador bridge)
-    Position NFTs (tradeable debt)
-    Credit scores (under-collateralized)
-    Full DAO governance
-```
+1. **Pause** — Guardians can pause borrowing, lending, and liquidations
+2. **Recover** — Admin functions for extreme scenarios (timelocked)
+3. **Upgrade** — New contract versions deployed via governance (no upgradeable proxies)
 
 ---
 
-## 10. Conclusion
+## 13. Roadmap
 
-XELIS Vault is the first protocol to bring **true privacy to DeFi lending**. By building on XELIS native homomorphic encryption, we enable:
+### Phase 1 — Foundation (Current)
 
-- **Confidential positions**: No one sees your collateral or debt
-- **MEV-resistant operations**: Fair liquidations and order execution
-- **Private stablecoin**: xUSD with encrypted balances and transfers
-- **Auto-yield savings**: Earn interest without exposing your wealth
-- **Community protection**: Insurance pool for peace of mind
+| Milestone | Status |
+|-----------|--------|
+| Core lending (deposit, borrow, repay, withdraw) | ✅ Live on devnet |
+| xUSD stablecoin | ✅ Live on devnet |
+| Interest rate model | ✅ Live on devnet |
+| Price oracle | ✅ Live on devnet |
+| Dashboard (React) | 🚧 In progress |
+| TypeScript SDK | ✅ Built |
+| Liquidation bot | ✅ Built |
+| Flash loans | ✅ Compiled |
+| Insurance pool | ✅ Compiled |
 
-In a world where financial privacy is increasingly valued, XELIS Vault provides the infrastructure for the next generation of decentralized lending.
+### Phase 2 — Governance & Markets (Post-VM Fix)
+
+| Milestone | Target |
+|-----------|--------|
+| VLT token deployment | Week 1 |
+| Governance vault + timelock | Week 2 |
+| Private lending marketplace | Week 3-4 |
+| Peer-to-peer lending | Week 5 |
+| Sealed-bid auctions | Week 6 |
+
+### Phase 3 — Institutional
+
+| Milestone | Target |
+|-----------|--------|
+| Compliance module (ZK KYC) | Week 7-8 |
+| Syndicated loans | Week 8-9 |
+| Treasury vault | Week 9-10 |
+| RWA tokenization standard | Week 10-11 |
+
+### Phase 4 — Expansion
+
+| Milestone | Target |
+|-----------|--------|
+| Revenue sharing | Week 12 |
+| Private payroll | Week 12 |
+| Private insurance | Week 13-14 |
+| Multi-collateral support | Week 14-15 |
+| Forge DEX integration | Week 15-16 |
+
+### Phase 5 — Dominance
+
+| Milestone | Target |
+|-----------|--------|
+| Cross-chain xUSD (Trocador) | Q3 2026 |
+| Position NFTs (tradeable debt) | Q3 2026 |
+| Credit scores (under-collateralized) | Q3 2026 |
+| Full DAO governance | Q3 2026 |
+| Institutional API | Q4 2026 |
+
+---
+
+## 14. Conclusion
+
+XELIS Vault is more than a lending protocol — it is **the first complete confidential financial platform** built on a privacy-native blockchain.
+
+By combining:
+- **Homomorphic encryption** for true confidentiality
+- **Modular contract architecture** for extensibility
+- **ZK proofs** for institutional compliance
+- **Governance tokens** for decentralized control
+
+...XELIS Vault enables financial applications that are impossible on transparent blockchains:
+- Institutions can participate without exposing their strategies
+- Individuals can borrow, lend, and trade without surveillance
+- Markets can operate fairly without MEV
+- Compliance can exist without sacrificing privacy
+
+In a world where financial privacy is increasingly scarce, XELIS Vault provides the infrastructure for a truly confidential financial future.
 
 ---
 
 ## References
 
 1. [XELIS Whitepaper V2](https://whitepaper.xelis.io/)
-2. [XELIS BlockDAG Documentation](https://docs.xelis.io/features/scalability/blockdag)
-3. [XELIS Homomorphic Encryption](https://docs.xelis.io/features/privacy/homomorphic-encryption)
-4. [Silex Language Reference](https://docs.xelis.io/features/smart-contracts/silex)
-5. [Aave Protocol Whitepaper](https://github.com/aave/aave-v3-core)
-6. [MakerDAO DAI Documentation](https://makerdao.com/en/whitepaper/)
+2. [XELIS Homomorphic Encryption](https://docs.xelis.io/features/privacy/homomorphic-encryption)
+3. [Silex Language Reference](https://docs.xelis.io/features/smart-contracts/silex)
+4. [Aave Protocol Whitepaper](https://github.com/aave/aave-v3-core)
+5. [Compound Finance](https://compound.finance/)
+6. [Liquity Protocol](https://www.liquity.org/)
 
 ---
 
-*XELIS Vault — Confidential Lending for the Privacy Era*
+*XELIS Vault — Confidential Finance for the Privacy Era*

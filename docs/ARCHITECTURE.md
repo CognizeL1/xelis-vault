@@ -4,69 +4,147 @@
 
 ```
 xelis-vault/
-├── contracts/                  # Smart contracts (Silex)
+├── contracts/                      # Smart contracts (Silex)
 │   ├── vault/
-│   │   └── VaultEngine.slx    # Core lending logic
+│   │   └── VaultEngine.slx        # Core lending logic
 │   ├── oracle/
-│   │   └── PriceOracle.slx    # Price feed with timelock
+│   │   └── PriceOracle.slx        # Price feed with timelock
 │   ├── interest/
 │   │   └── InterestRateModel.slx  # Dynamic interest rates
 │   ├── xusd/
-│   │   └── xUSD.slx           # Confidential stablecoin
+│   │   └── xUSD.slx               # Confidential stablecoin
 │   ├── insurance/
-│   │   └── InsurancePool.slx  # Community insurance
-│   └── flashloan/
-│       └── FlashLoan.slx      # Confidential flash loans
+│   │   └── InsurancePool.slx      # Community insurance
+│   ├── flashloan/
+│   │   └── FlashLoan.slx          # Confidential flash loans
+│   ├── governance/
+│   │   ├── VLT.slx                # Governance token
+│   │   ├── GovernanceVault.slx    # Staking & voting
+│   │   └── Timelock.slx           # 48h execution delay
+│   ├── market/
+│   │   ├── LendingMarket.slx      # Multi-pool lending
+│   │   ├── PeerLoan.slx           # P2P bilateral loans
+│   │   ├── SyndicatePool.slx      # Syndicated credit
+│   │   └── SealedBidAuction.slx   # Confidential auctions
+│   ├── tokenization/
+│   │   ├── AssetVault.slx         # RWA tokenization standard
+│   │   └── TreasuryVault.slx      # Multi-sig treasury
+│   ├── compliance/
+│   │   └── ComplianceModule.slx   # ZK KYC/AML layer
+│   ├── finance/
+│   │   ├── RevenueShare.slx       # Revenue distribution
+│   │   ├── Payroll.slx            # Recurring payments
+│   │   └── PrivateInsurance.slx   # P2P insurance & derivatives
+│   └── math/
+│       └── InterestRateModel.slx  # Pure-math rates
 ├── sdk/
 │   └── src/
-│       └── index.ts           # TypeScript SDK
+│       ├── index.ts               # Main SDK entry
+│       ├── vault.ts               # VaultEngine client
+│       ├── market.ts              # Marketplace client
+│       ├── governance.ts          # Governance client
+│       ├── compliance.ts          # Compliance client
+│       └── utils.ts               # Utilities
 ├── dashboard/
 │   └── src/
-│       ├── App.tsx            # Main React app
-│       ├── components/        # UI components
-│       ├── hooks/             # React hooks
-│       └── utils/             # Utilities
+│       ├── App.tsx                # Main React app
+│       ├── pages/
+│       │   ├── VaultDashboard.tsx  # Vault management
+│       │   ├── Marketplace.tsx     # Lending marketplace
+│       │   ├── Treasury.tsx        # Treasury management
+│       │   ├── Governance.tsx      # Voting & proposals
+│       │   ├── Compliance.tsx      # KYC/AML portal
+│       │   └── Auctions.tsx        # Auction house
+│       ├── components/             # Shared UI components
+│       ├── hooks/                  # React hooks
+│       └── utils/                  # Utilities
+├── cli/
+│   └── src/
+│       ├── index.ts               # CLI entry point
+│       ├── commands/
+│       │   ├── vault.ts            # xvault commands
+│       │   ├── market.ts           # market commands
+│       │   ├── governance.ts       # governance commands
+│       │   ├── treasury.ts         # treasury commands
+│       │   └── compliance.ts       # compliance commands
+│       └── utils.ts
 ├── bot/
 │   └── src/
-│       └── index.ts           # Liquidation keeper bot
+│       ├── index.ts               # Liquidation keeper bot
+│       ├── liquidator.ts           # Core liquidation logic
+│       └── scheduled.ts            # Scheduled Executions client
 ├── scripts/
-│   ├── setup-devnet.sh        # Devnet environment setup
-│   ├── deploy.sh              # Core contract deployment
-│   └── deploy-full.sh         # Full ecosystem deployment
+│   ├── setup-devnet.sh            # Devnet environment setup
+│   ├── deploy.sh                  # Core contract deployment
+│   └── deploy-full.sh             # Full ecosystem deployment
 ├── docs/
-│   ├── WHITEPAPER.md          # Technical whitepaper
-│   ├── ARCHITECTURE.md        # This file
-│   └── ROADMAP.md             # Development roadmap
-├── test/                      # Test files
-├── README.md                  # Project overview
-└── package.json               # Root package
+│   ├── WHITEPAPER.md              # Technical whitepaper
+│   ├── ARCHITECTURE.md            # This file
+│   └── ROADMAP.md                 # Development roadmap
+├── test/
+│   ├── vault.test.ts
+│   ├── market.test.ts
+│   ├── governance.test.ts
+│   └── integration.test.ts
+├── README.md                      # Project overview
+└── package.json                   # Root package
 ```
 
 ## Smart Contract Dependencies
 
 ```
 VaultEngine
-    ├── depends on → PriceOracle (get price data)
-    ├── depends on → xUSD (mint/burn stablecoin)
-    ├── depends on → InterestRateModel (calculate rates)
-    └── called by → LiquidationBot (liquidate positions)
+    ├── depends on → PriceOracle (XEL price data)
+    ├── depends on → xUSD (mint/burn)
+    ├── depends on → InterestRateModel (rate calculation)
+    └── called by → LiquidationBot
 
-xUSD
-    ├── depends on → VaultEngine (mint authorization)
-    └── extends → Confidential Asset (native XELIS)
+LendingMarket
+    ├── depends on → PriceOracle
+    ├── depends on → xUSD
+    ├── depends on → InterestRateModel
+    ├── depends on → AssetVault (collateral tokens)
+    └── depends on → ComplianceModule (institutional checks)
+
+PeerLoan
+    ├── depends on → PriceOracle
+    ├── depends on → ComplianceModule (optional)
+    └── depends on → Timelock (dispute resolution)
+
+SyndicatePool
+    ├── depends on → PriceOracle
+    ├── depends on → ComplianceModule
+    └── depends on → TreasuryVault (payout routing)
+
+SealedBidAuction
+    ├── depends on → AssetVault (any token type)
+    └── depends on → ComplianceModule (optional)
+
+AssetVault (standalone template)
+    └── can optionally integrate → ComplianceModule
+
+TreasuryVault
+    └── depends on → ComplianceModule (signer verification)
+
+GovernanceVault
+    ├── depends on → VLT (staking token)
+    ├── depends on → Timelock (execution delay)
+    └── manages → all protocol parameters
+
+ComplianceModule
+    └── called by → any contract requiring KYC/AML checks
 
 InsurancePool
     ├── depends on → VaultEngine (verify vault status)
     └── depends on → xUSD (payouts)
 
 FlashLoan
-    ├── depends on → VaultEngine (liquidity)
-    └── depends on → target contracts (callbacks)
+    └── depends on → liquidity sources
 ```
 
 ## Data Flow
 
-### Deposit → Borrow → Repay → Withdraw
+### Core Lending (VaultEngine)
 
 ```
 1. DEPOSIT
@@ -78,14 +156,14 @@ FlashLoan
 2. BORROW
    User → call borrow(vault_id, amount)
    VaultEngine → check health (collateral ≥ debt × 1.5)
-   VaultEngine → call xUSD.mint(user, amount)
-   VaultEngine → collect 0.5% fee
+   VaultEngine → mint xUSD (amount - 0.5% fee)
+   VaultEngine → collect 0.5% fee to treasury
    VaultEngine → update encrypted debt
    Return: total_debt
 
 3. REPAY
    User → [xUSD] → VaultEngine
-   VaultEngine → call xUSD.burn(user, amount)
+   VaultEngine → burn xUSD
    VaultEngine → update encrypted debt
    Return: remaining_debt
 
@@ -97,6 +175,41 @@ FlashLoan
    Return: remaining_collateral
 ```
 
+### Lending Marketplace
+
+```
+1. SUPPLY
+   User → [token] → LendingMarket pool
+   Position encrypted
+   Earn interest based on pool utilization
+
+2. BORROW
+   User → borrow from pool against collateral
+   Dynamic rate based on pool utilization
+   Position encrypted
+
+3. LIQUIDATE
+   Keeper → liquidate underwater position
+   Collateral transferred at discount
+   No identity revealed
+```
+
+### Governance
+
+```
+1. PROPOSE
+   VLT holder → submit parameter change
+   → enters Timelock (48h queue)
+
+2. VOTE
+   VLT stakers → vote on proposal
+   Weighted by stake duration
+
+3. EXECUTE
+   After timelock expires → parameter applied
+   Guardians can veto during timelock
+```
+
 ## Privacy Model
 
 | Data | On-Chain | Visibility |
@@ -104,33 +217,41 @@ FlashLoan
 | Vault owner | Public (Address) | Everyone |
 | Collateral amount | Encrypted (Ciphertext) | Owner only |
 | Borrow amount | Encrypted (Ciphertext) | Owner only |
-| Health factor | Computed (plaintext for VM) | No one (ZK verified) |
+| Health factor | Computed (plaintext for VM) | ZK verifiable |
+| Peer loan terms | Encrypted | Participants only |
+| Syndicate contributions | Encrypted | Participant-only |
+| Treasury balances | Encrypted | Authorized signers |
+| Auction bids | Encrypted | Bidder only |
+| Revenue shares | Encrypted | Recipient only |
+| Compliance status | ZK proof | Verifier only |
+| Insurance policy | Encrypted | Counterparties only |
 | xUSD balance | Encrypted (native) | Owner only |
 | Liquidations | Public (event) | Everyone |
-| Protocol fees | Public (plaintext) | Everyone |
+| Governance votes | Public | Everyone |
 
-## Gas Estimates (approximate)
+## Integrated Development Environment
 
-| Operation | Gas Cost |
-|-----------|----------|
-| deposit() | ~5,000 |
-| borrow() | ~15,000 |
-| repay() | ~12,000 |
-| withdraw() | ~10,000 |
-| liquidate() | ~20,000 |
-| flash_loan() | ~30,000 |
+### Devnet (Current)
+
+| Component | Address |
+|-----------|---------|
+| Daemon RPC | `http://127.0.0.1:18081` |
+| Wallet RPC | `http://127.0.0.1:18082` |
+| Wallet Auth | Basic auth, password: `testpassword` |
+| Network | `devnet` |
+
+### Testnet
+
+| Component | Address |
+|-----------|---------|
+| Daemon RPC | `http://127.0.0.1:18083` |
+| Wallet RPC | `http://127.0.0.1:18084` |
+| Wallet Auth | Basic auth |
+| Network | `testnet` |
+| Miner Address | `xet:gtk5tu8ydlh5yr5dcam559mgeuvkg48rllvhhs0tvgrycm7ahytsqd4f27d` |
 
 ---
 
-## Deployment Addresses (Mainnet)
+## Deployment Addresses
 
 *To be filled after mainnet deployment*
-
-| Contract | Address |
-|----------|---------|
-| VaultEngine | `TBD` |
-| xUSD | `TBD` |
-| PriceOracle | `TBD` |
-| InterestRateModel | `TBD` |
-| InsurancePool | `TBD` |
-| FlashLoan | `TBD` |
