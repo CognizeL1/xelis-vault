@@ -31,6 +31,7 @@ Built on XELIS native homomorphic encryption, XELIS Vault is the first platform 
 |---------|-------------|--------|
 | **Confidential Lending** | Overcollateralized loans with private positions | ✅ Live on devnet |
 | **xUSD Stablecoin** | Privacy-preserving stablecoin | ✅ Live on devnet |
+| **Redemption** | Arbitrage mechanism for xUSD peg via Forge DEX | 🔲 Planned |
 | **Private Marketplace** | Multi-pool, multi-collateral lending | 🔲 Planned |
 | **RWA Tokenization** | Standard for private real-world asset tokens | 🔲 Planned |
 | **Treasury Vault** | Confidential multi-sig for DAOs/institutions | 🔲 Planned |
@@ -50,6 +51,7 @@ Built on XELIS native homomorphic encryption, XELIS Vault is the first platform 
 | **xUSD** | Core | Confidential stablecoin |
 | **PriceOracle** | Core | XEL price feed |
 | **InterestRateModel** | Core | Dynamic kinked rates |
+| **Redemption** | Core | Automatic peg support via Forge DEX arbitrage |
 | **LendingMarket** | Market | Multi-pool lending marketplace |
 | **PeerLoan** | Market | Bilateral P2P loans |
 | **SyndicatePool** | Market | Syndicated credit pools |

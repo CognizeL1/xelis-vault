@@ -144,6 +144,25 @@ FlashLoan
 
 ## Data Flow
 
+### Forge DEX Integration
+
+XELIS Forge (`xelisforge.app`) is the native DEX on XELIS. xUSD will have:
+- xUSD/XEL liquidity pool for market price discovery
+- Arbitrage: if xUSD < $1 → buy on Forge, redeem with protocol for XEL
+- Arbitrage: if xUSD > $1 → borrow xUSD from vault, sell on Forge
+
+### Redemption Flow (Peg Support)
+
+```
+1. xUSD trades below $1 on Forge DEX
+2. Arbitrageur buys xUSD cheap on Forge
+3. Calls redeem(amount) on VaultEngine
+4. Contract targets vault with lowest CR (≥150%)
+5. Redeemer receives XEL collateral at face value
+6. Vault owner's debt reduced proportionally
+7. xUSD burned → supply decreases → price recovers
+```
+
 ### Core Lending (VaultEngine)
 
 ```

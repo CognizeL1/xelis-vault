@@ -162,15 +162,29 @@ If utilization > kink (80%):
 - `jump_multiplier`: 50% APR
 - `reserve_factor`: 10%
 
-### 3.4 Liquidations
+### 3.4 Redemption (Peg Support)
 
-Liquidations are MEV-resistant through XELIS Scheduled Executions:
+Redemption is the primary mechanism for maintaining xUSD's peg and creating arbitrage demand:
+
+1. Anyone holding xUSD can call `redeem(amount)` on VaultEngine
+2. The contract automatically targets the vault with the **lowest health factor** above 150%
+3. That vault's debt is reduced by the amount, and corresponding collateral is sent to the redeemer
+4. A small redemption fee (0.5-1%) is charged and sent to the protocol treasury
+5. The vault owner keeps their remaining debt and collateral — they are not liquidated
+
+**Purpose:** Redemption creates automatic demand for xUSD when it trades below $1 on external DEXes like **XELIS Forge**. Arbitrageurs buy xUSD cheap on Forge, redeem it with the protocol for XEL at face value, and profit from the spread. This mechanism keeps xUSD pegged without requiring anyone to find vaults manually.
+
+**Key difference from liquidation:** Redemption is voluntary, only targets healthy vaults (CR ≥ 150%), and the redeemer receives fair market collateral. Liquidation is forced, only targets underwater vaults (CR < 150%), and includes a penalty.
+
+### 3.5 Liquidations
+
+Liquidations handle vaults that fall below the minimum collateral ratio:
 
 1. Keeper bot monitors vault health via `is_liquidatable()`
-2. Caller repays the debt, receives collateral minus 5% penalty
-3. The 5% penalty is burned, reducing total supply
-4. Scheduled Executions batch-process liquidations at block boundaries
-5. Anyone can rescue an underwater vault — the least healthy vault is targeted first
+2. When CR drops below 150%, anyone can call `liquidate()`
+3. The caller repays the debt and receives collateral minus a 5% liquidation penalty
+4. The 5% penalty is burned, reducing total supply
+5. Scheduled Executions batch-process liquidations at block boundaries
 
 ---
 
@@ -194,9 +208,21 @@ The xUSD Savings Rate is a protocol-level yield paid to xUSD depositors:
 
 ### 4.3 Peg Mechanism
 
-1. **Arbitrage** — borrow xUSD when price > $1, repay when price < $1
-2. **Savings Rate** — adjustable yield incentivizes holding or spending
-3. **Overcollateralization** — every xUSD backed by at least $1.50 of XEL
+xUSD maintains its $1 peg through four mechanisms:
+
+1. **Redemption (primary)** — When xUSD trades below $1 on external DEXes (XELIS Forge), arbitrageurs buy xUSD cheap on the DEX and call `redeem()` on VaultEngine to receive XEL at face value. This is the main demand driver for xUSD below peg.
+
+2. **Borrow arbitrage** — When xUSD trades above $1, vault holders can borrow xUSD (at $1 face value) and sell it on the DEX for a profit. This increases supply and pushes price back down.
+
+3. **Savings Rate** — Adjustable yield incentivizes holding xUSD when supply is high, and spending/borrowing when supply is low.
+
+4. **Overcollateralization** — Every xUSD is backed by at least $1.50 of XEL, ensuring it can always be redeemed for underlying value.
+
+**Why this works with Forge DEX:**
+- xUSD/XEL liquidity pool on Forge enables market price discovery
+- Arbitrageurs constantly monitor the pool for deviations from $1
+- Redemption provides a guaranteed floor (you can always redeem xUSD for XEL at $1 worth)
+- Borrowing provides a guaranteed ceiling (you can always borrow xUSD at $1 face value)
 
 ---
 
@@ -216,6 +242,7 @@ Unlike VaultEngine's single-asset model, the marketplace allows:
 - Lenders to earn yield by supplying liquidity
 - Borrowers to choose the best pool for their needs
 - Composability — positions can be used as collateral elsewhere
+- **Forge DEX Integration** — xUSD liquidity pools enable market price discovery, arbitrage, and seamless swaps between all supported assets
 
 ### 5.2 Peer-to-Peer Lending
 
@@ -532,11 +559,13 @@ Revenue → Treasury
 | Flash loans | ✅ Compiled |
 | Insurance pool | ✅ Compiled |
 
-### Phase 2 — Governance & Markets (Post-VM Fix)
+### Phase 2 — Peg, Governance & Markets (Post-VM Fix)
 
 | Milestone | Target |
 |-----------|--------|
-| VLT token deployment | Week 1 |
+| Forge DEX xUSD/XEL pool launch | Week 1 |
+| Redemption mechanism (`redeem()`) | Week 1 |
+| VLT token deployment | Week 2 |
 | Governance vault + timelock | Week 2 |
 | Private lending marketplace | Week 3-4 |
 | Peer-to-peer lending | Week 5 |
@@ -559,7 +588,6 @@ Revenue → Treasury
 | Private payroll | Week 12 |
 | Private insurance | Week 13-14 |
 | Multi-collateral support | Week 14-15 |
-| Forge DEX integration | Week 15-16 |
 
 ### Phase 5 — Dominance
 

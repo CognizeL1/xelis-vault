@@ -31,18 +31,20 @@
 
 > **Milestone achieved** — Single-asset lending fully working on devnet
 
-## Phase 2: Governance & Markets 📅 (Post-VM Fix)
+## Phase 2: Peg, Governance & Markets 📅 (Post-VM Fix)
 
 | Task | Timeline |
 |------|----------|
-| **VLT Governance Token** — 10M supply, confidential asset | Week 1 |
-| **GovernanceVault** — stake VLT, vote on parameters | Week 1 |
+| **Forge DEX xUSD/XEL Pool** — bootstrap liquidity for peg | Week 1 |
+| **Redemption Mechanism** — `redeem()` entry on VaultEngine | Week 1 |
+| **VLT Governance Token** — 10M supply, confidential asset | Week 2 |
+| **GovernanceVault** — stake VLT, vote on parameters | Week 2 |
 | **Timelock** — 48h delay on all parameter changes | Week 2 |
 | **Private Lending Marketplace** — multi-pool, multi-collateral | Week 3-4 |
 | **Peer-to-Peer Lending** — bilateral confidential loans | Week 5 |
 | **Sealed-Bid Auctions** — fully confidential bidding | Week 6 |
 
-> **Milestone** — Decentralized governance live + financial markets operational
+> **Milestone** — Peg mechanism live + decentralized governance + financial markets operational
 
 ## Phase 3: Institutional 📅
 
@@ -63,7 +65,6 @@
 |------|----------|
 | **Private Insurance & Derivatives** — P2P risk markets | Week 13-14 |
 | **Multi-Collateral Support** — borrow against any asset | Week 14-15 |
-| **Forge DEX Integration** — xUSD/XEL liquidity pool | Week 15-16 |
 | **Testnet Launch** — full ecosystem on testnet | Week 16 |
 
 > **Milestone** — Full platform live and tested on testnet
