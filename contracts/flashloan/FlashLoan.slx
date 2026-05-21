@@ -2,6 +2,7 @@ const ADMIN_KEY: string = "a"
 const COUNTER_KEY: string = "n"
 const LOAN_PREFIX: string = "l"
 const FLASH_FEE_BPS: u64 = 9
+const CALLBACK_ENTRY: u16 = 0
 
 struct FlashLoan {
     borrower: Address,
@@ -52,6 +53,11 @@ entry flash_loan(asset: Hash, amount: u64, callback_contract: Hash) -> u64 {
     let ws: Storage = Storage::new();
     ws.store(get_loan_key(id), loan);
     ws.store(COUNTER_KEY, id + 1);
+    if callback_contract != Hash::zero() {
+        let cb: Contract = Contract::new(callback_contract).expect("cbnf");
+        let empty_deposits: {} = {};
+        cb.call(CALLBACK_ENTRY, [caller, amount, asset, id], empty_deposits);
+    }
     return id;
 }
 

@@ -1,5 +1,8 @@
 const ADMIN_KEY: string = "a"
-const XEL_PRICE_KEY: string = "p"
+const ACTIVE_PRICE_KEY: string = "p"
+const PENDING_PRICE_KEY: string = "pp"
+const PENDING_TOPO_KEY: string = "pt"
+const TIMELOCK_BLOCKS: u64 = 720
 
 hook constructor() -> u64 {
     let s: Storage = Storage::new();
@@ -14,17 +17,44 @@ fn only_admin() {
     require(caller == admin, "notauth");
 }
 
-entry set_price(price: u64) -> u64 {
+entry propose_price(price: u64) -> u64 {
     only_admin();
     require(price > 0, "inval");
+    let topo: u64 = get_current_topoheight();
     let ws: Storage = Storage::new();
-    ws.store(XEL_PRICE_KEY, price);
+    ws.store(PENDING_PRICE_KEY, price);
+    ws.store(PENDING_TOPO_KEY, topo);
+    return 0;
+}
+
+entry execute_price() -> u64 {
+    let rs: Storage = Storage::new();
+    let pending_price: optional<u64> = rs.load(PENDING_PRICE_KEY);
+    require(pending_price.is_some(), "nopend");
+    let pending_topo: u64 = rs.load(PENDING_TOPO_KEY).expect("ptns");
+    let current_topo: u64 = get_current_topoheight();
+    require(current_topo >= pending_topo + TIMELOCK_BLOCKS, "timelock");
+    let ws: Storage = Storage::new();
+    ws.store(ACTIVE_PRICE_KEY, pending_price.unwrap());
+    ws.store(PENDING_PRICE_KEY, 0u64);
     return 0;
 }
 
 entry get_price(asset: Hash) -> u64 {
     let s: Storage = Storage::new();
-    return s.load(XEL_PRICE_KEY).unwrap_or(0);
+    return s.load(ACTIVE_PRICE_KEY).unwrap_or(0);
+}
+
+entry get_pending_price() -> optional<u64> {
+    let s: Storage = Storage::new();
+    return s.load(PENDING_PRICE_KEY);
+}
+
+entry cancel_pending() -> u64 {
+    only_admin();
+    let ws: Storage = Storage::new();
+    ws.store(PENDING_PRICE_KEY, 0u64);
+    return 0;
 }
 
 entry transfer_admin(new_admin: Address) -> u64 {

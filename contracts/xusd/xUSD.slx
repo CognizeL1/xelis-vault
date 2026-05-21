@@ -1,10 +1,9 @@
 const ADMIN_KEY: string = "a"
-const TOTAL_KEY: string = "ts"
+const ASSET_KEY: string = "ak"
 
 hook constructor() -> u64 {
     let s: Storage = Storage::new();
     s.store(ADMIN_KEY, get_caller().expect("nocaller"));
-    s.store(TOTAL_KEY, 0u64);
     return 0;
 }
 
@@ -15,35 +14,45 @@ fn only_admin() {
     require(caller == admin, "notauth");
 }
 
-entry mint_tokens(amount: u64) -> u64 {
-    only_admin();
-    require(amount > 0, "amtgt0");
-    let rs: Storage = Storage::new();
-    let total: u64 = rs.load(TOTAL_KEY).expect("tns");
-    require(total + amount > total, "ovf");
-    let ws: Storage = Storage::new();
-    ws.store(TOTAL_KEY, total + amount);
-    return 0;
-}
-
-entry burn_tokens(amount: u64) -> u64 {
-    require(amount > 0, "amtgt0");
-    let rs: Storage = Storage::new();
-    let total: u64 = rs.load(TOTAL_KEY).expect("tns");
-    require(amount <= total, "lwbal");
-    let ws: Storage = Storage::new();
-    ws.store(TOTAL_KEY, total - amount);
-    return 0;
-}
-
-entry total_supply() -> u64 {
-    let rs: Storage = Storage::new();
-    return rs.load(TOTAL_KEY).unwrap_or(0);
-}
-
-entry transfer_admin(new_admin: Address) -> u64 {
+entry set_asset(asset_hash: Hash) -> u64 {
     only_admin();
     let ws: Storage = Storage::new();
-    ws.store(ADMIN_KEY, new_admin);
+    ws.store(ASSET_KEY, asset_hash);
     return 0;
+}
+
+entry mint_tokens(to: Address, amount: u64) -> u64 {
+    only_admin();
+    require(amount > 0, "amtgt0");
+    let asset: Hash = Storage::new().load(ASSET_KEY).expect("anset");
+    let ok: bool = mint(amount, asset);
+    require(ok, "mintfail");
+    let caller: Address = get_caller().expect("nocaller");
+    if to != caller {
+        let ok2: bool = transfer(to, amount, asset);
+        require(ok2, "txfail");
+    }
+    return 0;
+}
+
+entry burn_tokens(from: Address, amount: u64) -> u64 {
+    require(amount > 0, "amtgt0");
+    let asset: Hash = Storage::new().load(ASSET_KEY).expect("anset");
+    let ok: bool = burn(amount, asset);
+    require(ok, "burnfail");
+    return 0;
+}
+
+entry transfer_tokens(to: Address, amount: u64) -> u64 {
+    require(amount > 0, "amtgt0");
+    let caller: Address = get_caller().expect("nocaller");
+    let asset: Hash = Storage::new().load(ASSET_KEY).expect("anset");
+    let ok: bool = transfer(caller, amount, asset);
+    require(ok, "txfail");
+    return 0;
+}
+
+entry get_asset() -> Hash {
+    let s: Storage = Storage::new();
+    return s.load(ASSET_KEY).expect("anset");
 }
