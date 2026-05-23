@@ -69,6 +69,46 @@ Built on XELIS native homomorphic encryption, XELIS Vault is the first platform 
 
 ---
 
+## How It Works
+
+### 1. Deposit XEL → Mint xUSD
+
+1. **Deposit** XEL into VaultEngine (privacy-preserving).
+2. **Borrow** xUSD up to 50% LTV (configurable).
+3. **Interest** is dynamic based on utilization via InterestRateModel.
+4. **Repay** xUSD → unlock your XEL collateral.
+5. If LTV > max, anyone can **liquidate** — repays xUSD, claims discounted collateral.
+
+### 2. xUSD Peg
+
+- xUSD is minted one-to-one when borrowing against XEL.
+- **Redemption**: anyone can burn xUSD and claim XEL at face value (1 xUSD = 1 XEL worth of collateral) via a fair queue.
+- Excess demand for XEL creates an arbitrage: buy cheap xUSD → redeem → sell XEL (or vice versa).
+
+### 3. Sealed-Bid Auctions
+
+1. **Bid**: commit a hash of your bid + deposit during the bidding window.
+2. **Reveal**: submit your actual bid during the reveal window.
+3. **Settle**: winner pays their bid amount, seller receives funds.
+4. No one sees your bid until you reveal it — no front-running.
+
+### 4. Governance & Treasury
+
+- **VLT** is the governance token (10M supply, confidential asset).
+- **GovernanceVault**: stake VLT, earn boosted voting power (up to 2x via timelock).
+- **Timelock**: 48h delay on all parameter changes.
+- **TreasuryVault**: multi-sig for DAO funds with configurable signers.
+- **RevenueShare**: distribute protocol revenue to VLT stakers.
+
+### 5. Compliance
+
+- **ComplianceModule**: stores KYC/AML records indexed by wallet address.
+- Addresses are de-duplicated (one record per address).
+- The `is_accredited` check calls the underlying `is_kyc_valid` function.
+- All privacy-preserving: compliance is verified without on-chain identity.
+
+---
+
 ## Bug Fixes Applied (Static Analysis + Compilation)
 
 | # | Bug | File | Fix |
