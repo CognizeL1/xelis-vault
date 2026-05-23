@@ -87,7 +87,7 @@
 The `build_transaction` RPC expects the module as hex-encoded **binary** (custom `Serializer` format), but `silex-cli` outputs hex-encoded **JSON**. Fixing silex-cli to output binary hex is the critical path to deployment.
 
 ### In Progress
-- [ ] Fix silex-cli to output binary-format hex (custom `Module::write` format)
+- [-] Fix silex-cli to output binary-format hex (custom `Module::write` format)
 - [ ] Dashboard React (UI components)
 - [ ] SDK expansion
 - [ ] Deployment scripts
