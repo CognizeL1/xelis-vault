@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const POOL_PREFIX: string = "pl"
+const BORROW_PREFIX: string = "br"
 const COUNTER_KEY: string = "n"
 
 struct LendingPool {
@@ -8,6 +9,15 @@ struct LendingPool {
     total_borrows: u64,
     interest_rate_bps: u64,
     min_collateral_bps: u64,
+    active: bool
+}
+
+struct BorrowPosition {
+    borrower: Address,
+    pool_id: u64,
+    amount: u64,
+    collateral_asset: Hash,
+    collateral_amount: u64,
     active: bool
 }
 
@@ -29,10 +39,14 @@ fn get_pool_key(id: u64) -> string {
     return POOL_PREFIX + id.to_string(10u32);
 }
 
+fn get_borrow_key(id: u64) -> string {
+    return BORROW_PREFIX + id.to_string(10u32);
+}
+
 entry create_pool(asset: Hash, rate_bps: u64, min_col_bps: u64) -> u64 {
     only_admin();
     require(rate_bps > 0, "rategt0");
-    require(min_col_bps >= 100, "min100");
+    require(min_col_bps >= 10000, "min100pct");
     let rs: Storage = Storage::new();
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
     let pool: LendingPool = LendingPool {
@@ -59,7 +73,7 @@ entry supply(pool_id: u64) -> u64 {
     pool.total_liquidity += amount;
     let ws: Storage = Storage::new();
     ws.store(get_pool_key(pool_id), pool);
-    return 0;
+    return amount;
 }
 
 entry borrow(pool_id: u64, collateral_asset: Hash) -> u64 {
@@ -73,33 +87,46 @@ entry borrow(pool_id: u64, collateral_asset: Hash) -> u64 {
     let max_borrow: u64 = col_val * 10000 / pool.min_collateral_bps;
     let available: u64 = pool.total_liquidity - pool.total_borrows;
     let borrow_amount: u64 = max_borrow;
-    if borrow_amount > available { borrow_amount = available; }
+    if max_borrow > available { borrow_amount = available; }
     require(borrow_amount > 0, "amtgt0");
     let caller: Address = get_caller().expect("nocaller");
+    let borrow_id: u64 = rs.load(COUNTER_KEY).expect("idns");
+    let pos: BorrowPosition = BorrowPosition {
+        borrower: caller,
+        pool_id: pool_id,
+        amount: borrow_amount,
+        collateral_asset: collateral_asset,
+        collateral_amount: col_val,
+        active: true
+    };
+    let ws: Storage = Storage::new();
+    ws.store(get_borrow_key(borrow_id), pos);
+    ws.store(COUNTER_KEY, borrow_id + 1);
+    pool.total_borrows += borrow_amount;
+    ws.store(get_pool_key(pool_id), pool);
     let ok: bool = transfer(caller, borrow_amount, pool.asset_hash);
     require(ok, "txfail");
-    pool.total_borrows += borrow_amount;
-    let ws: Storage = Storage::new();
-    ws.store(get_pool_key(pool_id), pool);
-    return 0;
+    return borrow_id;
 }
 
-entry repay(pool_id: u64) -> u64 {
+entry repay(borrow_id: u64) -> u64 {
+    let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
-    let pool: LendingPool = rs.load(get_pool_key(pool_id)).expect("pnf");
-    require(pool.active, "inactive");
+    let pos: BorrowPosition = rs.load(get_borrow_key(borrow_id)).expect("bnf");
+    require(pos.borrower == caller, "ny");
+    require(pos.active, "inactive");
+    let pool: LendingPool = rs.load(get_pool_key(pos.pool_id)).expect("pnf");
     let dep: optional<u64> = get_deposit_for_asset(pool.asset_hash);
-    require(dep.is_some() && dep.unwrap() > 0, "nodep");
-    let amount: u64 = dep.unwrap();
-    if amount > pool.total_borrows {
-        pool.total_liquidity -= pool.total_borrows;
-        pool.total_borrows = 0;
-    } else {
-        pool.total_liquidity -= amount;
-        pool.total_borrows -= amount;
-    }
+    require(dep.is_some() && dep.unwrap() >= pos.amount, "nodep");
+    let repay_amount: u64 = pos.amount;
+    pool.total_liquidity += repay_amount;
+    pool.total_borrows -= repay_amount;
+    pos.active = false;
     let ws: Storage = Storage::new();
-    ws.store(get_pool_key(pool_id), pool);
+    ws.store(get_pool_key(pos.pool_id), pool);
+    ws.store(get_borrow_key(borrow_id), pos);
+    let ok: bool = transfer(caller, pos.collateral_amount, pos.collateral_asset);
+    require(ok, "txfail");
     return 0;
 }
 
@@ -111,10 +138,10 @@ entry withdraw_liquidity(pool_id: u64, amount: u64) -> u64 {
     let available: u64 = pool.total_liquidity - pool.total_borrows;
     require(amount <= available, "lwavl");
     pool.total_liquidity -= amount;
-    let ok: bool = transfer(caller, amount, pool.asset_hash);
-    require(ok, "txfail");
     let ws: Storage = Storage::new();
     ws.store(get_pool_key(pool_id), pool);
+    let ok: bool = transfer(caller, amount, pool.asset_hash);
+    require(ok, "txfail");
     return 0;
 }
 
@@ -131,6 +158,11 @@ entry deactivate_pool(pool_id: u64) -> u64 {
 entry get_pool(pool_id: u64) -> optional<LendingPool> {
     let rs: Storage = Storage::new();
     return rs.load(get_pool_key(pool_id));
+}
+
+entry get_borrow_position(borrow_id: u64) -> optional<BorrowPosition> {
+    let rs: Storage = Storage::new();
+    return rs.load(get_borrow_key(borrow_id));
 }
 
 entry transfer_admin(new_admin: Address) -> u64 {

@@ -3,11 +3,12 @@ const VLT_CONTRACT_KEY: string = "vc"
 const STAKE_PREFIX: string = "s"
 const TOTAL_KEY: string = "tt"
 const COUNTER_KEY: string = "n"
+const BLOCKS_PER_DAY: u64 = 17280
 
 struct StakePosition {
     owner: Address,
     amount: u64,
-    locked_until: u64,
+    locked_until_topo: u64,
     voting_power: u64,
     created_at: u64
 }
@@ -32,8 +33,8 @@ fn get_stake_key(id: u64) -> string {
 }
 
 fn calc_voting_power(amount: u64, lock_days: u64) -> u64 {
-    let multiplier: u64 = 100 + (lock_days * 10);
-    if multiplier > 300 { return amount * 300 / 100; }
+    let multiplier: u64 = 100 + (lock_days * 200 / 365);
+    if multiplier > 200 { return amount * 200 / 100; }
     return amount * multiplier / 100;
 }
 
@@ -54,13 +55,15 @@ entry stake(amount: u64, lock_days: u64) -> u64 {
     require(dep.is_some() && dep.unwrap() >= amount, "nodep");
     let rs: Storage = Storage::new();
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
+    let topo: u64 = get_current_topoheight();
+    let lock_blocks: u64 = lock_days * BLOCKS_PER_DAY;
     let vp: u64 = calc_voting_power(amount, lock_days);
     let pos: StakePosition = StakePosition {
         owner: caller,
         amount: amount,
-        locked_until: lock_days,
+        locked_until_topo: topo + lock_blocks,
         voting_power: vp,
-        created_at: id
+        created_at: topo
     };
     let ws: Storage = Storage::new();
     ws.store(get_stake_key(id), pos);
@@ -75,6 +78,8 @@ entry unstake(stake_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let pos: StakePosition = rs.load(get_stake_key(stake_id)).expect("snf");
     require(pos.owner == caller, "ny");
+    let topo: u64 = get_current_topoheight();
+    require(topo >= pos.locked_until_topo, "locked");
     let vlt_hash: Hash = Storage::new().load(VLT_CONTRACT_KEY).expect("vcns");
     let ok: bool = transfer(caller, pos.amount, vlt_hash);
     require(ok, "txfail");
@@ -83,6 +88,8 @@ entry unstake(stake_id: u64) -> u64 {
     let total: u64 = ws.load(TOTAL_KEY).unwrap_or(0);
     if total >= pos.voting_power {
         ws.store(TOTAL_KEY, total - pos.voting_power);
+    } else {
+        ws.store(TOTAL_KEY, 0u64);
     }
     return pos.amount;
 }

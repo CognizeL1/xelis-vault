@@ -1,13 +1,7 @@
 const ADMIN_KEY: string = "a"
 const STATUS_PREFIX: string = "cs"
+const ADDR_INDEX_PREFIX: string = "ci"
 const COUNTER_KEY: string = "n"
-
-enum KYCStatus {
-    None,
-    Pending,
-    Approved,
-    Rejected
-}
 
 struct ComplianceRecord {
     address_val: Address,
@@ -35,9 +29,15 @@ fn get_status_key(index: u64) -> string {
     return STATUS_PREFIX + index.to_string(10u32);
 }
 
+fn get_addr_index_key(addr: Address) -> string {
+    return ADDR_INDEX_PREFIX + addr.to_string();
+}
+
 entry register_user() -> u64 {
     let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
+    let existing: optional<u64> = rs.load(get_addr_index_key(caller));
+    require(existing.is_none(), "alrdy");
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
     let record: ComplianceRecord = ComplianceRecord {
         address_val: caller,
@@ -48,6 +48,7 @@ entry register_user() -> u64 {
     };
     let ws: Storage = Storage::new();
     ws.store(get_status_key(id), record);
+    ws.store(get_addr_index_key(caller), id);
     ws.store(COUNTER_KEY, id + 1);
     return id;
 }
@@ -76,7 +77,7 @@ entry reject_kyc(record_id: u64) -> u64 {
     return 0;
 }
 
-entry check_kyc(record_id: u64) -> bool {
+fn is_kyc_valid(record_id: u64) -> bool {
     let rs: Storage = Storage::new();
     let record: ComplianceRecord = rs.load(get_status_key(record_id)).expect("rnf");
     if record.kyc_status != 2 { return false; }
@@ -87,15 +88,25 @@ entry check_kyc(record_id: u64) -> bool {
     return true;
 }
 
+entry check_kyc(record_id: u64) -> bool {
+    return is_kyc_valid(record_id);
+}
+
 entry is_accredited(record_id: u64) -> bool {
     let rs: Storage = Storage::new();
     let record: ComplianceRecord = rs.load(get_status_key(record_id)).expect("rnf");
-    return record.accredited && check_kyc(record_id);
+    if !record.accredited { return false; }
+    return is_kyc_valid(record_id);
 }
 
 entry get_record(record_id: u64) -> optional<ComplianceRecord> {
     let rs: Storage = Storage::new();
     return rs.load(get_status_key(record_id));
+}
+
+entry get_record_id_by_address(addr: Address) -> optional<u64> {
+    let rs: Storage = Storage::new();
+    return rs.load(get_addr_index_key(addr));
 }
 
 entry transfer_admin(new_admin: Address) -> u64 {

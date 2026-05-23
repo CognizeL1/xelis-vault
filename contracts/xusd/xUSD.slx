@@ -1,6 +1,5 @@
 const ADMIN_KEY: string = "a"
 const ASSET_HASH_KEY: string = "ah"
-const ASSET_ID_KEY: string = "ai"
 
 hook constructor() -> u64 {
     let s: Storage = Storage::new();
@@ -19,11 +18,10 @@ entry create_asset() -> u64 {
     only_admin();
     let bal: optional<u64> = get_balance_for_asset(Hash::zero());
     require(bal.is_some() && bal.unwrap() >= 100000000, "lowbal");
-    let asset: Asset = Asset::create(0u64, "XELIS USD", "xUSD", 8u8, null).expect("crefail");
+    let asset: Asset = Asset::create(0u64, "XELIS USD", "xUSD", 8u8, MaxSupplyMode::None).expect("crefail");
     let hash: Hash = asset.get_hash();
     let ws: Storage = Storage::new();
     ws.store(ASSET_HASH_KEY, hash);
-    ws.store(ASSET_ID_KEY, 0u64);
     return 0;
 }
 
@@ -46,6 +44,8 @@ entry mint_tokens(to: Address, amount: u64) -> u64 {
 entry burn_tokens(amount: u64) -> u64 {
     require(amount > 0, "amtgt0");
     let hash: Hash = Storage::new().load(ASSET_HASH_KEY).expect("anset");
+    let dep: optional<u64> = get_deposit_for_asset(hash);
+    require(dep.is_some() && dep.unwrap() >= amount, "nodep");
     let ok: bool = burn(amount, hash);
     require(ok, "burnfail");
     return 0;
@@ -54,8 +54,11 @@ entry burn_tokens(amount: u64) -> u64 {
 entry transfer_tokens(to: Address, amount: u64) -> u64 {
     require(amount > 0, "amtgt0");
     let caller: Address = get_caller().expect("nocaller");
+    require(to != caller, "selfxfer");
     let hash: Hash = Storage::new().load(ASSET_HASH_KEY).expect("anset");
-    let ok: bool = transfer(caller, amount, hash);
+    let dep: optional<u64> = get_deposit_for_asset(hash);
+    require(dep.is_some() && dep.unwrap() >= amount, "nodep");
+    let ok: bool = transfer(to, amount, hash);
     require(ok, "txfail");
     return 0;
 }

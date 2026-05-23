@@ -9,7 +9,7 @@ struct FlashLoan {
     asset: Hash,
     amount: u64,
     fee: u64,
-    executed: bool,
+    repaid: bool,
     callback_contract: Hash,
     created_at: u64
 }
@@ -36,9 +36,7 @@ entry flash_loan(asset: Hash, amount: u64, callback_contract: Hash) -> u64 {
     require(amount > 0, "amtgt0");
     let caller: Address = get_caller().expect("nocaller");
     let fee: u64 = amount * FLASH_FEE_BPS / 10000;
-    require(fee < amount, "feefail");
-    let ok: bool = transfer(caller, amount, asset);
-    require(ok, "txfail");
+    require(fee > 0, "feezero");
     let rs: Storage = Storage::new();
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
     let loan: FlashLoan = FlashLoan {
@@ -46,17 +44,18 @@ entry flash_loan(asset: Hash, amount: u64, callback_contract: Hash) -> u64 {
         asset: asset,
         amount: amount,
         fee: fee,
-        executed: false,
+        repaid: false,
         callback_contract: callback_contract,
         created_at: id
     };
     let ws: Storage = Storage::new();
     ws.store(get_loan_key(id), loan);
     ws.store(COUNTER_KEY, id + 1);
+    let ok: bool = transfer(caller, amount, asset);
+    require(ok, "txfail");
     if callback_contract != Hash::zero() {
         let cb: Contract = Contract::new(callback_contract).expect("cbnf");
-        let empty_deposits: {} = {};
-        cb.call(CALLBACK_ENTRY, [caller, amount, asset, id], empty_deposits);
+        cb.call(CALLBACK_ENTRY, [caller, amount, asset, id], {});
     }
     return id;
 }
@@ -66,11 +65,11 @@ entry repay_flash_loan(loan_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let loan: FlashLoan = rs.load(get_loan_key(loan_id)).expect("lnf");
     require(loan.borrower == caller, "ny");
-    require(!loan.executed, "alrdy");
+    require(!loan.repaid, "alrdy");
     let repay_amount: u64 = loan.amount + loan.fee;
     let dep: optional<u64> = get_deposit_for_asset(loan.asset);
     require(dep.is_some() && dep.unwrap() >= repay_amount, "nodep");
-    loan.executed = true;
+    loan.repaid = true;
     let ws: Storage = Storage::new();
     ws.store(get_loan_key(loan_id), loan);
     return repay_amount;

@@ -68,22 +68,21 @@ entry execute_payroll(stream_id: u64) -> u64 {
     let stream: PayrollStream = rs.load(get_stream_key(stream_id)).expect("pnf");
     require(stream.active, "inactive");
     let topo: u64 = get_current_topoheight();
+    require(topo >= stream.start_topo, "notstarted");
     let elapsed: u64 = topo - stream.start_topo;
     let blocks_due: u64 = elapsed;
-    if blocks_due > stream.total_blocks {
-        blocks_due = stream.total_blocks;
-    }
+    if elapsed > stream.total_blocks { blocks_due = stream.total_blocks; }
+    require(blocks_due > stream.blocks_paid, "nopending");
     let pending: u64 = blocks_due - stream.blocks_paid;
-    if pending == 0 { return 0; }
     let amount: u64 = stream.amount_per_block * pending;
     stream.blocks_paid += pending;
     if stream.blocks_paid >= stream.total_blocks {
         stream.active = false;
     }
-    let ok: bool = transfer(stream.employee, amount, stream.asset_hash);
-    require(ok, "txfail");
     let ws: Storage = Storage::new();
     ws.store(get_stream_key(stream_id), stream);
+    let ok: bool = transfer(stream.employee, amount, stream.asset_hash);
+    require(ok, "txfail");
     return amount;
 }
 
@@ -91,6 +90,7 @@ entry cancel_stream(stream_id: u64) -> u64 {
     only_admin();
     let rs: Storage = Storage::new();
     let stream: PayrollStream = rs.load(get_stream_key(stream_id)).expect("pnf");
+    require(stream.active, "inactive");
     stream.active = false;
     let ws: Storage = Storage::new();
     ws.store(get_stream_key(stream_id), stream);

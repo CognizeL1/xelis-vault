@@ -66,12 +66,11 @@ entry execute_proposal(proposal_id: u64) -> u64 {
     require(!prop.cancelled, "canc");
     let topo: u64 = get_current_topoheight();
     require(topo >= prop.submitted_at + prop.delay, "early");
-    let target: Contract = Contract::new(prop.target_contract).expect("tcnf");
-    let empty_deposits: {} = {};
-    target.call(prop.entry_id, [], empty_deposits);
     prop.executed = true;
     let ws: Storage = Storage::new();
     ws.store(get_proposal_key(proposal_id), prop);
+    let target: Contract = Contract::new(prop.target_contract).expect("tcnf");
+    target.call(prop.entry_id, [], {});
     return 0;
 }
 
@@ -80,6 +79,7 @@ entry cancel_proposal(proposal_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let prop: Proposal = rs.load(get_proposal_key(proposal_id)).expect("pnf");
     require(!prop.executed, "done");
+    require(!prop.cancelled, "alrdy");
     prop.cancelled = true;
     let ws: Storage = Storage::new();
     ws.store(get_proposal_key(proposal_id), prop);

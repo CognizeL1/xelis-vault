@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const STAKER_PREFIX: string = "s"
+const MEMBER_PREFIX: string = "m"
 const COUNTER_KEY: string = "n"
 const TOTAL_STAKED_KEY: string = "ts"
 
@@ -14,6 +15,7 @@ hook constructor() -> u64 {
     let s: Storage = Storage::new();
     s.store(ADMIN_KEY, get_caller().expect("nocaller"));
     s.store(COUNTER_KEY, 1u64);
+    s.store(TOTAL_STAKED_KEY, 0u64);
     return 0;
 }
 
@@ -28,6 +30,10 @@ fn get_stake_key(id: u64) -> string {
     return STAKER_PREFIX + id.to_string(10u32);
 }
 
+fn get_member_key(addr: Address) -> string {
+    return MEMBER_PREFIX + addr.to_string();
+}
+
 entry stake(amount: u64) -> u64 {
     require(amount > 0, "amtgt0");
     let dep: optional<u64> = get_deposit_for_asset(Hash::zero());
@@ -35,16 +41,19 @@ entry stake(amount: u64) -> u64 {
     let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
+    let topo: u64 = get_current_topoheight();
     let pos: StakePosition = StakePosition {
         owner: caller,
         amount: amount,
-        staked_at: id,
+        staked_at: topo,
         claimed: false
     };
     let ws: Storage = Storage::new();
     ws.store(get_stake_key(id), pos);
+    ws.store(get_member_key(caller), id);
     ws.store(COUNTER_KEY, id + 1);
-    ws.store(TOTAL_STAKED_KEY, rs.load(TOTAL_STAKED_KEY).unwrap_or(0) + amount);
+    let total: u64 = rs.load(TOTAL_STAKED_KEY).unwrap_or(0);
+    ws.store(TOTAL_STAKED_KEY, total + amount);
     return id;
 }
 
@@ -57,6 +66,14 @@ entry claim(position_id: u64) -> u64 {
     pos.claimed = true;
     let ws: Storage = Storage::new();
     ws.store(get_stake_key(position_id), pos);
+    let total: u64 = rs.load(TOTAL_STAKED_KEY).unwrap_or(0);
+    if total >= pos.amount {
+        ws.store(TOTAL_STAKED_KEY, total - pos.amount);
+    } else {
+        ws.store(TOTAL_STAKED_KEY, 0u64);
+    }
+    let ok: bool = transfer(caller, pos.amount, Hash::zero());
+    require(ok, "txfail");
     return pos.amount;
 }
 
@@ -68,4 +85,20 @@ entry get_position(position_id: u64) -> optional<StakePosition> {
 entry get_total_staked() -> u64 {
     let s: Storage = Storage::new();
     return s.load(TOTAL_STAKED_KEY).unwrap_or(0);
+}
+
+entry is_member(addr: Address) -> bool {
+    let s: Storage = Storage::new();
+    let id: optional<u64> = s.load(get_member_key(addr));
+    if id.is_none() { return false; }
+    let pos: optional<StakePosition> = s.load(get_stake_key(id.unwrap()));
+    if pos.is_none() { return false; }
+    return !pos.unwrap().claimed;
+}
+
+entry transfer_admin(new_admin: Address) -> u64 {
+    only_admin();
+    let ws: Storage = Storage::new();
+    ws.store(ADMIN_KEY, new_admin);
+    return 0;
 }

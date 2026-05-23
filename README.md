@@ -29,80 +29,74 @@ Built on XELIS native homomorphic encryption, XELIS Vault is the first platform 
 
 | Product | Description | Status |
 |---------|-------------|--------|
-| **Confidential Lending** | Overcollateralized loans with private positions | ✅ Live on devnet |
-| **xUSD Stablecoin** | Privacy-preserving stablecoin | ✅ Live on devnet |
-| **Redemption** | Arbitrage mechanism for xUSD peg via Forge DEX | 🔲 Planned |
-| **Private Marketplace** | Multi-pool, multi-collateral lending | 🔲 Planned |
-| **RWA Tokenization** | Standard for private real-world asset tokens | 🔲 Planned |
-| **Treasury Vault** | Confidential multi-sig for DAOs/institutions | 🔲 Planned |
-| **Peer Loans** | Bilateral confidential lending | 🔲 Planned |
-| **Syndicated Loans** | Multi-lender credit pools | 🔲 Planned |
-| **Sealed-Bid Auctions** | Confidential bidding | 🔲 Planned |
-| **Compliance Layer** | ZK KYC/AML verification | 🔲 Planned |
-| **Governance (VLT)** | Token-based protocol governance | 🔲 Planned |
+| **Confidential Lending** | Overcollateralized loans with private positions | ✅ Compiled |
+| **xUSD Stablecoin** | Privacy-preserving stablecoin | ✅ Compiled |
+| **Redemption** | Fair-queue XEL redemption for peg | ✅ Compiled |
+| **Private Marketplace** | Multi-pool, multi-collateral lending | ✅ Compiled |
+| **RWA Tokenization** | Standard for private real-world asset tokens | ✅ Compiled |
+| **Treasury Vault** | Confidential multi-sig for DAOs/institutions | ✅ Compiled |
+| **Peer Loans** | Bilateral confidential lending | ✅ Compiled |
+| **Syndicated Loans** | Multi-lender credit pools | ✅ Compiled |
+| **Sealed-Bid Auctions** | Confidential bidding with reveal window | ✅ Compiled |
+| **Compliance Layer** | KYC/AML verification with address dedup | ✅ Compiled |
+| **Governance (VLT)** | Token-based protocol governance | ✅ Compiled |
 
 ---
 
 ## Smart Contracts
 
-| Contract | Type | Description |
-|----------|------|-------------|
-| **VaultEngine** | Core | Deposit, borrow, repay, withdraw, liquidate |
-| **xUSD** | Core | Confidential stablecoin |
-| **PriceOracle** | Core | XEL price feed |
-| **InterestRateModel** | Core | Dynamic kinked rates |
-| **Redemption** | Core | Automatic peg support via Forge DEX arbitrage |
-| **LendingMarket** | Market | Multi-pool lending marketplace |
-| **PeerLoan** | Market | Bilateral P2P loans |
-| **SyndicatePool** | Market | Syndicated credit pools |
-| **SealedBidAuction** | Market | Confidential auctions |
-| **AssetVault** | Tokenization | RWA token standard |
-| **TreasuryVault** | Treasury | Multi-sig treasury |
-| **RevenueShare** | Treasury | Revenue distribution |
-| **Payroll** | Treasury | Recurring payments |
-| **InsurancePool** | Insurance | Community insurance |
-| **PrivateInsurance** | Insurance | P2P risk markets |
-| **FlashLoan** | Core | Confidential flash loans |
-| **ComplianceModule** | Compliance | ZK KYC/AML layer |
-| **VLT** | Governance | Governance token |
-| **GovernanceVault** | Governance | Staking & voting |
-| **Timelock** | Governance | 48h execution delay |
+| Contract | Type | Description | Status |
+|----------|------|-------------|--------|
+| **VaultEngine** | Core | Deposit, borrow, repay, withdraw, liquidate, redeem | ✅ 380 LOC |
+| **xUSD** | Core | Confidential stablecoin (mint/burn/transfer with self-xfer guard) | ✅ |
+| **PriceOracle** | Core | XEL price feed via contract call | ✅ |
+| **InterestRateModel** | Core | Dynamic kinked interest rates | ✅ |
+| **LendingMarket** | Market | Multi-pool lending with individual borrow positions | ✅ |
+| **PeerLoan** | Market | Bilateral P2P loans | ✅ |
+| **SyndicatePool** | Market | Syndicated credit pools | ✅ |
+| **SealedBidAuction** | Market | Confidential auctions with bid/reveal/settle | ✅ |
+| **AssetVault** | Tokenization | RWA token standard with revaluation | ✅ |
+| **TreasuryVault** | Treasury | Multi-sig treasury | ✅ |
+| **RevenueShare** | Treasury | Revenue distribution with holder tracking | ✅ |
+| **Payroll** | Treasury | Recurring payments with time-based accrual | ✅ |
+| **InsurancePool** | Insurance | Community insurance with member tracking | ✅ |
+| **PrivateInsurance** | Insurance | P2P risk markets with dedup join | ✅ |
+| **FlashLoan** | Core | Confidential flash loans | ✅ |
+| **ComplianceModule** | Compliance | KYC/AML with address-indexed records | ✅ |
+| **VLT** | Governance | Governance token (create/mint/burn/transfer) | ✅ |
+| **GovernanceVault** | Governance | Staking & voting with absolute locktopo | ✅ |
+| **Timelock** | Governance | 48h execution delay with reentrancy protection | ✅ |
+
+---
+
+## Bug Fixes Applied (Static Analysis + Compilation)
+
+| # | Bug | File | Fix |
+|---|-----|------|-----|
+| 1 | `last_update_topo = vault_id` | VaultEngine | Changed to `get_current_topoheight()` |
+| 2 | AssetVault division guard missing | AssetVault | Added `total_shares > 0` check in `buy_shares` |
+| 3 | RevenueShare `asset_hash` used instead of `Hash::zero()` | RevenueShare | All distributions use `Hash::zero()` |
+| 4 | InsurancePool claim didn't transfer XEL | InsurancePool | Added `transfer(caller, amount, Hash::zero())` |
+| 5 | GovernanceVault `locked_until` stored days | GovernanceVault | Changed to absolute `locked_until_topo` using `BLOCKS_PER_DAY` |
+| 6 | Timelock `Contract::call` before state save | Timelock | Moved call after `executed = true` |
+| 7 | InterestRateModel precision | InterestRateModel | Uses bps-based calculations |
+| 8 | LendingMarket repay used `-=` instead of `+=` | LendingMarket | Repay now adds to liquidity |
+| 9 | SealedBidAuction hardcoded `1u64` transfer | SealedBidAuction | Uses `asset_amount` field |
+| 10 | SealedBidAuction `withdraw_bid` after end | SealedBidAuction | Added `reveal_end_topo` window |
+| 11 | PrivateInsurance join dedup missing | PrivateInsurance | Added `get_member_key()` check |
+| 12 | xUSD `transfer_tokens` sent to caller | xUSD/VLT | Changed `transfer(to, amount, hash)` |
+| 13 | VLT `burn` conflicts with builtin | VLT | Renamed to `burn_vlt` |
+| 14 | `Hash::from_u256(u64)` no cast | SealedBidAuction | Added `as u256` cast |
+| 15 | `null` not valid for MaxSupplyMode | VLT/xUSD/AssetVault | Replaced with `MaxSupplyMode::None` |
+| 16 | State save before external call (reentrancy) | FlashLoan/Payroll/RevenueShare | Moved `ws.store()` before `transfer()` |
+| 17 | `let mut` not valid in Silex | All contracts | Changed to `let` (vars are mutable by default) |
+| 18 | entry called from another entry | ComplianceModule | Extracted `is_kyc_valid` as `fn` |
 
 ---
 
 ## How It Works
 
-### For Lenders
-```
-1. Supply XEL or xUSD → pool
-2. Earn interest (dynamic APR)
-3. Withdraw anytime
-4. Everything is private
-```
-
-### For Borrowers
-```
-1. Deposit XEL as collateral
-2. Borrow xUSD against it
-3. Repay to unlock collateral
-4. Your position is encrypted
-```
-
-### For Institutions
-```
-1. Complete KYC off-chain (once)
-2. Receive ZK compliance proof
-3. Use any protocol feature privately
-4. Regulators see proofs, not positions
-```
-
-### For DAOs
-```
-1. Create a Treasury Vault
-2. Add signers with multi-sig
-3. Manage budgets confidentially
-4. Pay contributors via private payroll
-```
+[..]
 
 ---
 
@@ -110,17 +104,25 @@ Built on XELIS native homomorphic encryption, XELIS Vault is the first platform 
 
 | Phase | Status |
 |-------|--------|
-| **Core Lending** — deposit, borrow, repay, withdraw | ✅ Live on devnet |
-| **xUSD Stablecoin** | ✅ Live on devnet |
-| **Price Oracle** | ✅ Live on devnet |
-| **Interest Rate Model** | ✅ Live on devnet |
+| **19 Smart Contracts** — all compiled, bug-fixed, hex generated | ✅ Complete |
+| **Core Lending** — deposit, borrow, repay, withdraw, liquidate | ✅ Compiled |
+| **xUSD Stablecoin** — mint/burn with self-xfer guard | ✅ Compiled |
+| **Redemption** — fair-queue XEL↔xUSD pivot | ✅ Compiled |
+| **Price Oracle** | ✅ Compiled |
+| **Interest Rate Model** | ✅ Compiled |
 | **Insurance Pool** | ✅ Compiled |
-| **Flash Loans** | ✅ Compiled |
+| **Flash Loans** — reentrancy-safe | ✅ Compiled |
+| **Sealed-Bid Auctions** — bid/reveal/settle | ✅ Compiled |
+| **Lending Marketplace** — borrow positions tracked | ✅ Compiled |
+| **RWA Tokenization** — AssetVault + revaluation | ✅ Compiled |
+| **Treasury Vault** + Revenue Share + Payroll | ✅ Compiled |
+| **Compliance Module** — address-indexed KYC | ✅ Compiled |
+| **VLT + GovernanceVault + Timelock** | ✅ Compiled |
 | **Dashboard** | 🚧 In progress |
 | **TypeScript SDK** | ✅ Built |
 | **Liquidation Bot** | ✅ Built |
-| **CLI Tool** | 🔲 |
-| **Testnet Launch** | 📅 Next |
+| **Devnet Deployment** | 🔲 Blocked by wallet binary hex format |
+| **Testnet Launch** | 📅 Post-VM-fix |
 | **Mainnet** | 📅 Q3 2026 |
 
 ---

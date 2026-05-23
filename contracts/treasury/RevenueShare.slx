@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const SHARE_PREFIX: string = "rs"
+const HOLDER_PREFIX: string = "rh"
 const COUNTER_KEY: string = "n"
 
 struct RevenueShare {
@@ -7,6 +8,12 @@ struct RevenueShare {
     total_shares: u64,
     distributed: u64,
     active: bool
+}
+
+struct ShareHolder {
+    owner: Address,
+    share_id: u64,
+    shares: u64
 }
 
 hook constructor() -> u64 {
@@ -27,6 +34,10 @@ fn get_share_key(id: u64) -> string {
     return SHARE_PREFIX + id.to_string(10u32);
 }
 
+fn get_holder_key(share_id: u64, holder: Address) -> string {
+    return HOLDER_PREFIX + share_id.to_string(10u32) + holder.to_string();
+}
+
 entry create_share(name: string, total_shares: u64) -> u64 {
     only_admin();
     require(total_shares > 0, "sharesgt0");
@@ -44,6 +55,23 @@ entry create_share(name: string, total_shares: u64) -> u64 {
     return id;
 }
 
+entry assign_shares(share_id: u64, holder: Address, amount: u64) -> u64 {
+    only_admin();
+    let rs: Storage = Storage::new();
+    let share: RevenueShare = rs.load(get_share_key(share_id)).expect("snf");
+    require(share.active, "inactive");
+    require(amount > 0, "amtgt0");
+    require(amount <= share.total_shares, "exceed");
+    let holder_rec: ShareHolder = ShareHolder {
+        owner: holder,
+        share_id: share_id,
+        shares: amount
+    };
+    let ws: Storage = Storage::new();
+    ws.store(get_holder_key(share_id, holder), holder_rec);
+    return 0;
+}
+
 entry deposit_revenue(share_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let share: RevenueShare = rs.load(get_share_key(share_id)).expect("snf");
@@ -57,25 +85,32 @@ entry deposit_revenue(share_id: u64) -> u64 {
     return 0;
 }
 
-entry claim_dividends(share_id: u64, claimant_shares: u64) -> u64 {
+entry claim_dividends(share_id: u64) -> u64 {
     let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
     let share: RevenueShare = rs.load(get_share_key(share_id)).expect("snf");
     require(share.active, "inactive");
-    require(claimant_shares <= share.total_shares, "exceed");
-    let amount: u64 = share.distributed * claimant_shares / share.total_shares;
-    require(amount > 0, "amtgt0");
+    let holder_rec: ShareHolder = rs.load(get_holder_key(share_id, caller)).expect("noshares");
+    require(holder_rec.owner == caller, "ny");
+    require(holder_rec.shares > 0, "noshares");
+    let amount: u64 = share.distributed * holder_rec.shares / share.total_shares;
+    require(amount > 0, "noamt");
     share.distributed -= amount;
-    let ok: bool = transfer(caller, amount, Hash::zero());
-    require(ok, "txfail");
     let ws: Storage = Storage::new();
     ws.store(get_share_key(share_id), share);
+    let ok: bool = transfer(caller, amount, Hash::zero());
+    require(ok, "txfail");
     return amount;
 }
 
 entry get_share(share_id: u64) -> optional<RevenueShare> {
     let rs: Storage = Storage::new();
     return rs.load(get_share_key(share_id));
+}
+
+entry get_holder(share_id: u64, holder: Address) -> optional<ShareHolder> {
+    let rs: Storage = Storage::new();
+    return rs.load(get_holder_key(share_id, holder));
 }
 
 entry transfer_admin(new_admin: Address) -> u64 {

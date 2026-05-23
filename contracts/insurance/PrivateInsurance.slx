@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const POOL_PREFIX: string = "pi"
+const MEMBER_PREFIX: string = "pm"
 const COUNTER_KEY: string = "n"
 
 struct InsurancePool {
@@ -33,6 +34,10 @@ fn get_pool_key(id: u64) -> string {
     return POOL_PREFIX + id.to_string(10u32);
 }
 
+fn get_member_key(pool_id: u64, addr: Address) -> string {
+    return MEMBER_PREFIX + pool_id.to_string(10u32) + addr.to_string();
+}
+
 entry create_pool(name: string, premium_asset: Hash, premium_amount: u64, coverage_asset: Hash, coverage_amount: u64, max_members: u64) -> u64 {
     only_admin();
     require(premium_amount > 0, "premgt0");
@@ -64,12 +69,15 @@ entry join_pool(pool_id: u64) -> u64 {
     let pool: InsurancePool = rs.load(get_pool_key(pool_id)).expect("pnf");
     require(pool.active, "inactive");
     require(pool.member_count < pool.max_members, "full");
+    let already: optional<bool> = rs.load(get_member_key(pool_id, caller));
+    require(already.is_none(), "alrdy");
     let dep: optional<u64> = get_deposit_for_asset(pool.premium_asset);
     require(dep.is_some() && dep.unwrap() >= pool.premium_amount, "nodep");
     pool.total_premiums += pool.premium_amount;
     pool.member_count += 1;
     let ws: Storage = Storage::new();
     ws.store(get_pool_key(pool_id), pool);
+    ws.store(get_member_key(pool_id, caller), true);
     return 0;
 }
 
@@ -78,13 +86,15 @@ entry claim_payout(pool_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let pool: InsurancePool = rs.load(get_pool_key(pool_id)).expect("pnf");
     require(pool.active, "inactive");
+    let is_member: optional<bool> = rs.load(get_member_key(pool_id, caller));
+    require(is_member.is_some() && is_member.unwrap(), "notmember");
     require(pool.total_premiums >= pool.coverage_amount, "lowfunds");
     pool.total_premiums -= pool.coverage_amount;
     pool.total_payouts += pool.coverage_amount;
-    let ok: bool = transfer(caller, pool.coverage_amount, pool.coverage_asset);
-    require(ok, "txfail");
     let ws: Storage = Storage::new();
     ws.store(get_pool_key(pool_id), pool);
+    let ok: bool = transfer(caller, pool.coverage_amount, pool.coverage_asset);
+    require(ok, "txfail");
     return pool.coverage_amount;
 }
 

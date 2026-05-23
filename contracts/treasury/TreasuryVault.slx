@@ -72,8 +72,8 @@ entry distribute() -> u64 {
     require(bal > 0, "nofunds");
     let count: u64 = rs.load(ALLOC_COUNT_KEY).unwrap_or(0);
     require(count > 0, "noalloc");
-    let mut i: u64 = 0;
-    let mut total_distributed: u64 = 0;
+    let i: u64 = 0;
+    let total_distributed: u64 = 0;
     while i < count {
         let alloc_opt: optional<Allocation> = rs.load(get_alloc_key(i));
         if alloc_opt.is_none() { i += 1; continue; }

@@ -68,7 +68,6 @@ entry invest(pool_id: u64) -> u64 {
     let dep: optional<u64> = get_deposit_for_asset(pool.target_asset);
     require(dep.is_some() && dep.unwrap() >= pool.min_investment, "nodep");
     let amount: u64 = dep.unwrap();
-    let topo: u64 = get_current_topoheight();
     pool.raised += amount;
     pool.investor_count += 1;
     let ws: Storage = Storage::new();
@@ -82,13 +81,13 @@ entry close_pool(pool_id: u64) -> u64 {
     let pool: SyndicatePool = rs.load(get_pool_key(pool_id)).expect("pnf");
     require(pool.active && !pool.closed, "closed");
     require(caller == pool.manager, "ny");
+    pool.closed = true;
+    let ws: Storage = Storage::new();
+    ws.store(get_pool_key(pool_id), pool);
     if pool.raised >= pool.target_amount {
         let ok: bool = transfer(pool.manager, pool.raised, pool.target_asset);
         require(ok, "txfail");
     }
-    pool.closed = true;
-    let ws: Storage = Storage::new();
-    ws.store(get_pool_key(pool_id), pool);
     return 0;
 }
 
