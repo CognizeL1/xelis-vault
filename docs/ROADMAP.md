@@ -26,7 +26,7 @@
 | TypeScript SDK | ✅ Built |
 | Liquidation Bot | ✅ Built |
 | Dashboard (React) | 🚧 In progress |
-| Devnet deploy (blocked by wallet hex format) | 🔲 |
+| Devnet deploy | 🚧 In progress |
 
 > **Milestone achieved** — All 19 contracts compile, 18 bugs fixed (7 static analysis + 11 compilation)
 
