@@ -136,32 +136,6 @@ We identified that the silex-compiler's environment registration order differs f
 - [🗺️ Roadmap](docs/ROADMAP.md) — Development timeline and current sprint
 - [🏗️ Architecture](docs/ARCHITECTURE.md) — System design and contract dependencies
 
-## Quick Start
-
-```bash
-# Prerequisites: XELIS daemon, wallet, miner running on testnet
-
-# Compile a contract
-git clone git@github.com:XelisVault/xelis-vault.git
-cd xelis-vault
-
-# Use our silex-cli fork to compile
-/path/to/silex-cli contracts/vault/VaultEngine.slx > vault_hex.txt
-
-# Deploy via wallet RPC
-curl -u ":password" -X POST http://127.0.0.1:18082/json_rpc \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "deploy_contract",
-    "params": {
-      "data": "'$(cat vault_hex.txt)'",
-      "version": 0,
-      "fees": 1000000000,
-      "entries": [{"name": "init", "args": []}]
-    }
-  }'
-```
-
 ---
 
 ## Community
