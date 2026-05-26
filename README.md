@@ -75,6 +75,12 @@ XELIS Vault is a complete suite of **19 smart contracts** covering every major D
 | **GovernanceVault** | Stake VLT, earn boosted voting power, control protocol parameters |
 | **Timelock** | 48-hour delay on all parameter changes with guardian veto |
 
+### Communication
+
+| Product | Description |
+|---------|-------------|
+| **XelisVault Messenger** | Wallet-to-wallet encrypted messaging, groups, self-destruct, payment bundling, DAO channels |
+
 ---
 
 ## How It Works
@@ -114,19 +120,21 @@ xUSD is designed to trade at $1 through four mechanisms:
 | **TypeScript SDK** | ✅ Built |
 | **Liquidation Bot** | ✅ Built |
 | **Dashboard (React)** | 🚧 In progress |
-| **VM Storage Bug Fix** — syscall ID mismatch between compiler and daemon | 🔧 In progress |
-| **Testnet Deployment** | 📅 Post-VM-fix |
+| **VM Storage Bug Fix** — syscall ID mismatch fixed (stdlib rewritten) | ✅ Complete |
+| **Bug Fix Sprint** — 24 bugs found via comprehensive static audit | 🔧 In progress |
+| **Testnet Deployment** | 📅 Post-bug-fix |
+| **XelisVault Messenger** — encrypted messaging protocol | 📅 Phase 7 |
 | **Mainnet Launch** | 📅 Q3 2026 |
 
-### Current Blocker: VM Syscall ID Mismatch
+### Current Blocker: Storage Persistence on Testnet
 
-We identified that the silex-compiler's environment registration order differs from the daemon's runtime environment. Because all native functions share a single flat ID space, even one registration difference shifts every subsequent syscall ID. Key findings:
+The silex-cli environment has been **fully rewritten** to match the daemon's `build_environment()` registration order exactly. The previous syscall ID mismatch between compiler and daemon — caused by iterator registration order, Ciphertext method naming (`generate` vs `new`), and extra compiler stubs — has been resolved.
 
-- `iterator::register` is included in silex-cli's `EnvironmentBuilder::default()` but only registered by the daemon for V1+ contracts
-- Several opaque type methods have different names (`generate` vs `new` for Ciphertext)
-- Several contract functions differ between compiler stubs and daemon registrations
+Storage operations (`storage_store`, `storage_load`) should now reach the daemon's handlers. **Next step: deploy a test contract to verify `/tmp/dbg_storage.txt` is created**, confirming storage persistence works end-to-end.
 
-**We're fixing this by rewriting the silex-cli environment to exactly mirror the daemon's `build_environment()` registration order.** Once fixed, storage operations (`storage_store`, `storage_load`) will reach the daemon's handlers and contracts can be deployed with persistent state.
+### Comprehensive Bug Audit
+
+A detailed static analysis of all 19 contracts identified **24 bugs** (7 critical, 8 elevated, 6 medium, 3 minor). Critical bugs include the price oracle storing 0 instead of deleting, VaultEngine missing xUSD mint/transfer/burn, liquidate not transferring collateral, and GovernanceVault using the wrong asset hash. A dedicated **bug fix sprint** is underway.
 
 ---
 

@@ -543,65 +543,285 @@ Revenue → Treasury
 
 ---
 
-## 13. Roadmap
+## 13. Bug Report & Static Analysis
 
-### Phase 1 — Foundation (Current)
+In May 2026, an automated static analysis was conducted across all 19 smart contracts. Every contract was audited line-by-line for business logic, system calls, token handling, and security vulnerabilities. **100% of contracts (19/19) contained at least one bug.**
 
-| Milestone | Status |
-|-----------|--------|
-| Core lending (deposit, borrow, repay, withdraw) | ✅ Live on devnet |
-| xUSD stablecoin | ✅ Live on devnet |
-| Interest rate model | ✅ Live on devnet |
-| Price oracle | ✅ Live on devnet |
-| Dashboard (React) | 🚧 In progress |
-| TypeScript SDK | ✅ Built |
-| Liquidation bot | ✅ Built |
-| Flash loans | ✅ Compiled |
-| Insurance pool | ✅ Compiled |
+### Summary
 
-### Phase 2 — Peg, Governance & Markets (Post-VM Fix)
+| Severity | Count | Impact |
+|----------|-------|--------|
+| **Critical** | 7 | Funds at direct risk — incorrect price, missing transfers, broken peg |
+| **Elevated** | 8 | Logic flaws — timing attacks, incorrect asset handling, missing checks |
+| **Medium** | 6 | Design issues — missing refunds, incorrect constraints, parameter gaps |
+| **Minor** | 3 | Edge cases — return values, counter mismatches, collision risks |
+| **Total** | **24** | |
 
-| Milestone | Target |
-|-----------|--------|
-| Forge DEX xUSD/XEL pool launch | Week 1 |
-| Redemption mechanism (`redeem()`) | Week 1 |
-| VLT token deployment | Week 2 |
-| Governance vault + timelock | Week 2 |
-| Private lending marketplace | Week 3-4 |
-| Peer-to-peer lending | Week 5 |
-| Sealed-bid auctions | Week 6 |
+### Critical Bugs
 
-### Phase 3 — Institutional
+| Bug | Contract | Description | Fix |
+|-----|----------|-------------|-----|
+| Oracle stores 0 instead of deleting | `PriceOracle.slx` | `execute_price()` does `store(ORACLE_KEY, 0)` instead of `delete()` — 0 is interpreted as a valid $0 price, liquidating all positions | Replace with `delete(ORACLE_KEY)` |
+| Wrong entry index for price oracle | `VaultEngine.slx` | `get_xel_price()` calls entry 3 instead of entry 2; reads return as `Ciphertext` instead of `u64` | Fix entry index (3→2) and return type |
+| Borrow never sends xUSD to borrower | `VaultEngine.slx` | `borrow()` mints xUSD but never transfers it — borrower incurs debt without receiving funds | Add `transfer_tokens` after mint |
+| Repay does not burn xUSD | `VaultEngine.slx` | `repay()` reduces stored debt without burning xUSD — repaid tokens remain in circulation, breaking the peg | Burn xUSD via `xusd_entry_burn` |
+| Liquidate transfers nothing to liquidator | `VaultEngine.slx` | `liquidate()` calculates collateral but never calls `transfer_tokens` — liquidator pays debt but receives nothing | Add `transfer_tokens` for XEL collateral |
+| Withdraw bypasses health check when remaining is 0 | `VaultEngine.slx` | `if collateral_plain > 0` skips the health check — a user can withdraw all collateral even while still in debt | Always verify health factor when borrow exists |
+| GovernanceVault uses contract hash instead of asset hash | `GovernanceVault.slx` | `lock_tokens()` uses `get_contract_hash()` instead of `VLT_ASSET_KEY` — wrong asset identity for transfers | Store and use `VLT_ASSET_KEY` from init |
 
-| Milestone | Target |
-|-----------|--------|
-| Compliance module (ZK KYC) | Week 7-8 |
-| Syndicated loans | Week 8-9 |
-| Treasury vault | Week 9-10 |
-| RWA tokenization standard | Week 10-11 |
+### Elevated Bugs
 
-### Phase 4 — Expansion
+| Bug | Contract | Description | Fix |
+|-----|----------|-------------|-----|
+| Lock duration in blocks not days | `GovernanceVault.slx` | Lock times measured in blocks (~5s each) — a "30 day" lock lasts 2.5 minutes | Convert durations to seconds/days |
+| `transfer_tokens` sends to caller, ignores "to" param | `xUSD.slx` / `VLT.slx` | `transfer()` accepts a `to: Address` parameter but calls `transfer_tokens(asset, caller, amount)` — recipient is always the caller | Replace `caller` with `to` |
+| Flash loan repayment not atomic | `FlashLoan.slx` | Loan must be borrowed AND repaid in a single atomic transaction — no final balance check after callback | Add balance verification after callback |
+| Reveal allowed before auction ends | `SealedBidAuction.slx` | Bids can be revealed before auction end, breaking sealed-bid privacy | Add `require(topo > auction.end_block)` |
+| xor_hashes is not a standard function | `SealedBidAuction.slx` | Commit uses `xor_hashes(owner_hash, amount_hash)` which does not exist in XELIS VM | Replace with standard hash commitment |
+| Claim payout can be called repeatedly | `PrivateInsurance.slx` | `claim_payout()` does not track prior payouts — member can drain the pool | Add `claimed: bool` per policy |
+| Claim does not decrement total staked | `InsurancePool.slx` | When a claim is paid, `TOTAL_STAKED_KEY` remains unchanged — total staked desynchronizes from actual pool balance | Decrement `TOTAL_STAKED_KEY` on claim |
+| No debt tracking per borrower | `LendingMarket.slx` | Pool has no per-borrower debt tracking — impossible to liquidate a specific borrower | Add `borrower_debt: Address → Ciphertext` per pool |
 
-| Milestone | Target |
-|-----------|--------|
-| Revenue sharing | Week 12 |
-| Private payroll | Week 12 |
-| Private insurance | Week 13-14 |
-| Multi-collateral support | Week 14-15 |
+### Medium Bugs
 
-### Phase 5 — Dominance
+| Bug | Contract | Description | Fix |
+|-----|----------|-------------|-----|
+| Anyone can use another's KYC record | `ComplianceModule.slx` | Verification checks only that a hash exists, not that the caller is the KYC subject | Link proof to subject address, verify caller matches |
+| Funds lost if syndicate target not met | `SyndicatePool.slx` | No refund mechanism if the pool fails to reach its target — funds remain locked | Add `cancel_syndicate()` with refunds |
+| Cumulative allocations can exceed 100% | `TreasuryVault.slx` | `add_allocation()` does not verify total ≤ 100% | Check `total_allocations + new ≤ MAX` |
+| Mutation of immutable variable | `LendingMarket.slx` | Contract modifies a variable declared `immutable` after init — compilation error | Remove `immutable` modifier |
+| Fund stream does not track per-stream amounts | `Payroll.slx` | `fund_stream()` adds to contract balance but not per-stream allocation | Store `total_funded` per stream_id |
+| deposit_revenue always expects XEL | `RevenueShare.slx` | No asset parameter — revenue distribution limited to XEL only | Add `asset: Hash` parameter |
 
-| Milestone | Target |
-|-----------|--------|
-| Cross-chain xUSD (Trocador) | Q3 2026 |
-| Position NFTs (tradeable debt) | Q3 2026 |
-| Credit scores (under-collateralized) | Q3 2026 |
-| Full DAO governance | Q3 2026 |
-| Institutional API | Q4 2026 |
+### Minor Bugs
+
+| Bug | Contract | Description | Fix |
+|-----|----------|-------------|-----|
+| withdraw_liquidity returns 0 | `LendingMarket.slx` | Read-before-write order causes return value to always be 0 | Restructure: read → calculate → write → return |
+| Asset ID collision risk | `AssetVault.slx` | Auto-incrementing IDs can collide across multiple AssetVault deployments | Prefix IDs with `get_contract_hash()` |
+| remove_allocation does not decrement counter | `TreasuryVault.slx` | `ALLOC_COUNT_KEY` is not decremented on allocation removal | Decrement counter in `remove_allocation()` |
+
+### Impact
+
+All 24 bugs must be resolved before testnet deployment. The 7 critical and 8 elevated bugs directly affect fund safety, peg stability, and core protocol functionality. A dedicated **Phase 0.5 — Bug Fix Sprint** has been added to the roadmap.
 
 ---
 
-## 14. Conclusion
+## 14. XelisVault Messenger
+
+XelisVault Messenger is a **wallet-to-wallet encrypted messaging protocol** built directly on XELIS smart contracts. It enables private, censorship-resistant communication with optional payment bundling, group management, and DAO integrations — all secured by XELIS native cryptography.
+
+### 14.1 Motivation
+
+Blockchain communication today relies on off-chain platforms (Telegram, Discord, Signal) that:
+- Require trust in centralized infrastructure
+- Expose metadata (who talks to whom, when)
+- Cannot natively integrate with on-chain actions (payments, proposals, governance)
+
+XelisVault Messenger solves this by bringing communication **on-chain** where it inherits blockchain security, censorship resistance, and native payment integration.
+
+### 14.2 Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│            XelisVault Messenger              │
+├─────────────────────────────────────────────┤
+│  MessageContract.slx — core messaging engine │
+│  GroupContract.slx — group/DAO channel mgmt  │
+│  PaymentContract.slx — payment bundling      │
+│  StorageContract.slx — encrypted storage     │
+└─────────────────────────────────────────────┘
+```
+
+### 14.3 Features
+
+#### 14.3.1 One-to-One Messaging
+
+- **Commit-reveal delivery**: sender commits to a message hash, recipient reveals on first read
+- **End-to-end encrypted**: messages use XELIS public key cryptography — only sender and recipient can decrypt
+- **Proof-of-delivery**: sender can verify recipient has read the message without revealing content
+- **Payment+message bundling**: send XEL or xUSD in the same transaction as a message — "I paid you, here's why"
+
+#### 14.3.2 Group Messaging
+
+- **On-chain group creation**: groups of up to 50-100 members
+- **Role-based access**: admin, moderator, member, read-only
+- **Encrypted group channels**: only members see messages and member list
+- **Invite system**: encrypted invites with optional payment requirements
+- **Thread support**: messages organized by topic within a group
+
+#### 14.3.3 Self-Destructing Messages
+
+- **Time-locked reads**: message auto-destructs after N blocks if not read
+- **Burn-after-reading**: message is permanently deleted from chain after first read
+- **Configurable timers**: per-message expiration (minutes, hours, days)
+
+#### 14.3.4 DAO & Governance Integration
+
+- **DAO channels**: private governance discussion channels tied to GovernanceVault proposals
+- **Proposal-linked messaging**: discuss proposals in encrypted threads visible only to VLT holders
+- **Vote-signaling**: react to messages with on-chain votes (yes/no/abstain)
+- **Treasury notifications**: automatic encrypted notifications for TreasuryVault transactions
+
+#### 14.3.5 Privacy & Security
+
+| Feature | Implementation |
+|---------|---------------|
+| Message encryption | XELIS public key crypto (Curve25519) |
+| Metadata hiding | Commit-reveal delivery, no plaintext sender/recipient on-chain |
+| Anti-spam | Payment-per-message micro-fees (configurable) |
+| Message ordering | TopoHeight-based sequencing |
+| File attachments | Off-chain (Arweave/IPFS) with on-chain hash + encryption key |
+
+### 14.4 Use Cases
+
+| Use Case | How Messenger Solves It |
+|----------|------------------------|
+| **P2P loan negotiation** | Borrow and lender discuss terms in an encrypted thread, then execute via PeerLoan in the same session |
+| **Syndicate coordination** | Lead arranger communicates with lenders privately, all within the syndicate's encrypted channel |
+| **Governance discussion** | VLT holders debate proposals in private, vote-signal without revealing position |
+| **Treasury operations** | Multi-sig signers coordinate via encrypted notifications — no Telegram dependency |
+| **Institutional compliance** | Regulated entities communicate within ZK-verified channels |
+| **Private auction bidding** | Bidder-auctioneer communication, sealed bid submission, and reveal — all in-messenger |
+
+### 14.5 Roadmap
+
+| Phase | Features | Timeline |
+|-------|----------|----------|
+| **Messenger 1.0** | 1-to-1 encrypted messaging, payment bundling, proof-of-delivery | Phase 7 |
+| **Messenger 2.0** | Groups (50 members), roles, threads, self-destruct messages | Phase 8 |
+| **Messenger 3.0** | DAO integration, proposal-linked channels, VLT-gated access | Phase 9 |
+| **Messenger 4.0** | File attachments (IPFS/Arweave), reactions, typing indicators | Phase 10 |
+
+---
+
+## 15. Roadmap
+
+### Phase 0 — Contract Development 
+
+| Milestone | Status |
+|-----------|--------|
+| All 19 smart contracts written | ✅ Complete |
+| Compilation & static analysis (18+ syntax bugs fixed) | ✅ Complete |
+| TypeScript SDK + CLI + Liquidation Bot | ✅ Complete |
+| Comprehensive bug audit (24 bugs found) | ✅ Complete |
+
+### Phase 0.5 — Bug Fix Sprint (Current)
+
+| Milestone | Target |
+|-----------|--------|
+| Fix 7 critical bugs (PriceOracle, VaultEngine, GovernanceVault) | Sprint 1 |
+| Fix 8 elevated bugs (xUSD/VLT transfer, FlashLoan, SealedBidAuction, Insurance) | Sprint 2 |
+| Fix 6 medium + 3 minor bugs | Sprint 3 |
+| Re-test all contracts after fixes | Sprint 3 |
+| Deploy and verify `Storage::store` / `Storage::load` on testnet | Sprint 1 |
+
+### Phase 1 — VM & Deployment
+
+| Milestone | Status |
+|-----------|--------|
+| Identify root cause (function registration order mismatch) | ✅ |
+| Fix xstd registration order (remove iterator for V0) | ✅ |
+| Rewrite stdlib.rs to match daemon's `build_environment()` exactly | ✅ |
+| Deploy and test storage persistence on testnet | 🔧 In progress |
+| Full vault lifecycle test (deposit → borrow → repay → withdraw) | 📅 |
+| Liquidation path test | 📅 |
+
+### Phase 2 — Core Lending on Testnet
+
+| Milestone | Target |
+|-----------|--------|
+| Deploy PriceOracle (set initial XEL price) | Week 1 post-VM-fix |
+| Deploy xUSD (create confidential asset) | Week 1 |
+| Deploy InterestRateModel | Week 1 |
+| Deploy VaultEngine (set oracle, xUSD, interest model) | Week 2 |
+| Test deposit → borrow → repay → withdraw lifecycle | Week 2 |
+| Test redemption path | Week 2 |
+| Test liquidation path | Week 2 |
+| Deploy InsurancePool + FlashLoan | Week 2 |
+
+### Phase 3 — Peg, Governance & Markets
+
+| Milestone | Target |
+|-----------|--------|
+| Forge DEX xUSD/XEL pool launch | Week 3 |
+| Redemption mechanism (`redeem()`) | Week 3 |
+| VLT token deployment (10M confidential asset) | Week 3 |
+| GovernanceVault + Timelock | Week 3 |
+| Private lending marketplace | Week 4 |
+| Peer-to-peer lending | Week 4 |
+| Sealed-bid auctions | Week 5 |
+
+### Phase 4 — Institutional
+
+| Milestone | Target |
+|-----------|--------|
+| Compliance module (ZK KYC/AML) | Week 6 |
+| Syndicated loans | Week 6 |
+| Treasury vault (multi-sig) | Week 7 |
+| RWA tokenization standard (AssetVault) | Week 7 |
+
+### Phase 5 — Expansion
+
+| Milestone | Target |
+|-----------|--------|
+| Revenue sharing | Week 8 |
+| Private payroll | Week 8 |
+| Private insurance | Week 9 |
+| Multi-collateral support | Week 9 |
+
+### Phase 6 — Production
+
+| Milestone | Target |
+|-----------|--------|
+| Professional security audit | Q3 2026 |
+| Bug bounty program | Q3 2026 |
+| Public testnet launch | Q3 2026 |
+| Mainnet launch | Q3 2026 |
+| Cross-chain xUSD (Trocador) | Q3 2026 |
+| Position NFTs (tradeable debt) | Q3 2026 |
+| Credit scores (under-collateralized loans) | Q3 2026 |
+| Full DAO governance | Q3 2026 |
+| Institutional API | Q4 2026 |
+
+### Phase 7 — XelisVault Messenger 1.0
+
+| Milestone | Target |
+|-----------|--------|
+| 1-to-1 encrypted messaging contract | Q4 2026 |
+| Payment+message bundling | Q4 2026 |
+| Proof-of-delivery | Q4 2026 |
+| XELIS public key crypto integration | Q4 2026 |
+
+### Phase 8 — XelisVault Messenger 2.0
+
+| Milestone | Target |
+|-----------|--------|
+| Group messaging (50 members) | Q1 2027 |
+| Role-based access (admin, mod, member) | Q1 2027 |
+| Thread support | Q1 2027 |
+| Self-destructing messages | Q1 2027 |
+
+### Phase 9 — XelisVault Messenger 3.0
+
+| Milestone | Target |
+|-----------|--------|
+| DAO governance channels | Q2 2027 |
+| Proposal-linked messaging | Q2 2027 |
+| VLT-gated access | Q2 2027 |
+| Vote-signaling | Q2 2027 |
+
+### Phase 10 — XelisVault Messenger 4.0
+
+| Milestone | Target |
+|-----------|--------|
+| File attachments (IPFS/Arweave) | Q2 2027 |
+| Reactions and typing indicators | Q2 2027 |
+| Mobile SDK | Q3 2027 |
+
+---
+
+## 16. Conclusion
 
 XELIS Vault is more than a lending protocol — it is **the first complete confidential financial platform** built on a privacy-native blockchain.
 

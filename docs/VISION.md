@@ -45,6 +45,7 @@ XELIS Vault est la première plateforme à transformer ces primitives en un éco
 | **Émetteur RWA** | Tokeniser un actif réel confidentiellement | AssetVault + metadata privé |
 | **Trader** | Enchérir sans front-running | SealedBidAuction + commit/reveal |
 | **Créateur** | Partager ses revenus sans exposer les montants | RevenueShare + Payroll |
+| **Utilisateur messagerie** | Communiquer de manière privée et sécurisée sur la blockchain | XelisVault Messenger |
 
 ## Ce qu'on a fait
 
@@ -76,21 +77,27 @@ Chaque contrat a été compilé avec `silex-cli` et passé en revue pour les bug
 
 Tout compile. Les bugs de syntaxe/logique sont corrigés. L'infrastructure SDK/CLI/bot est prête.
 
-### 🔧 En cours (bloqueur critique)
+**Environnement du compilateur réécrit** pour correspondre exactement à l'ordre d'enregistrement du daemon — le décalage de syscall IDs est corrigé.
 
-**Les appels storage ne fonctionnent pas.** Le compilateur et le daemon n'ont pas le même ordre d'enregistrement des fonctions natives — donc les syscall IDs sont différents, et `storage_store`/`storage_load` ne sont jamais routés vers le handler du daemon.
+**Audit complet de sécurité** réalisé : 24 bugs identifiés (7 critiques, 8 élevés, 6 moyens, 3 mineurs) — chaque contrat a été analysé ligne par ligne.
 
-On réécrit l'environnement du compilateur pour qu'il corresponde exactement à celui du daemon. C'est le dernier vrai blocage avant le déploiement sur testnet.
+### 🔧 En cours
+
+**Correction des 24 bugs** identifiés par l'audit, en priorité les 7 critiques (PriceOracle qui stocke 0 au lieu de supprimer, VaultEngine sans transfert xUSD ni burn, liquidate sans transfert de collatéral, GovernanceVault avec le mauvais asset hash).
+
+**Test de persistence storage** sur testnet — une fois les bugs critiques corrigés, déploiement du premier contrat pour vérifier que `storage_store`/`storage_load` fonctionnent.
 
 ### 📅 Prochaines étapes
 
-1. Réparer le décalage d'IDs des syscalls → storage fonctionnel
-2. Déployer PriceOracle → xUSD → VaultEngine sur testnet
-3. Tester le cycle complet deposit → borrow → repay → withdraw
-4. Déployer les 16 contrats restants
-5. Annonce publique + testnet ouvert
-6. Audit de sécurité + bug bounty
-7. Mainnet
+1. ✅ Réparer le décalage d'IDs des syscalls → stdlib réécrit, prêt à tester
+2. 🔧 Corriger les 24 bugs identifiés par l'audit complet (7 critiques, 8 élevés)
+3. Déployer PriceOracle → xUSD → VaultEngine sur testnet
+4. Tester le cycle complet deposit → borrow → repay → withdraw
+5. Déployer les 16 contrats restants
+6. Annonce publique + testnet ouvert
+7. Audit de sécurité + bug bounty
+8. Mainnet
+9. **XelisVault Messenger** — messagerie chiffrée wallet-to-wallet avec groupes, paiements, et intégration DAO
 
 ## L'opportunité
 
