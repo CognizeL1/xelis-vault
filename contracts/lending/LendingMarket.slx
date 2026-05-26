@@ -93,8 +93,7 @@ entry borrow(pool_id: u64, collateral_asset: Hash) -> u64 {
     let col_val: u64 = col_raw * price / 100000000;
     let max_borrow: u64 = col_val * 10000 / pool.min_collateral_bps;
     let available: u64 = pool.total_liquidity - pool.total_borrows;
-    let borrow_amount: u64 = max_borrow;
-    if max_borrow > available { borrow_amount = available; }
+    let borrow_amount: u64 = if max_borrow > available { available } else { max_borrow };
     require(borrow_amount > 0, "amtgt0");
     let caller: Address = get_caller().expect("nocaller");
     let borrow_id: u64 = rs.load(COUNTER_KEY).expect("idns");
@@ -149,7 +148,7 @@ entry withdraw_liquidity(pool_id: u64, amount: u64) -> u64 {
     ws.store(get_pool_key(pool_id), pool);
     let ok: bool = transfer(caller, amount, pool.asset_hash);
     require(ok, "txfail");
-    return 0;
+    return amount;
 }
 
 entry deactivate_pool(pool_id: u64) -> u64 {

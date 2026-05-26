@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const VLT_CONTRACT_KEY: string = "vc"
+const VLT_ASSET_KEY: string = "va"
 const STAKE_PREFIX: string = "s"
 const TOTAL_KEY: string = "tt"
 const COUNTER_KEY: string = "n"
@@ -45,13 +46,20 @@ entry set_vlt_contract(contract_hash: Hash) -> u64 {
     return 0;
 }
 
+entry set_vlt_asset(asset_hash: Hash) -> u64 {
+    only_admin();
+    let ws: Storage = Storage::new();
+    ws.store(VLT_ASSET_KEY, asset_hash);
+    return 0;
+}
+
 entry stake(amount: u64, lock_days: u64) -> u64 {
     require(amount > 0, "amtgt0");
     require(lock_days >= 7, "min7d");
     require(lock_days <= 365, "max1y");
     let caller: Address = get_caller().expect("nocaller");
-    let vlt_hash: Hash = Storage::new().load(VLT_CONTRACT_KEY).expect("vcns");
-    let dep: optional<u64> = get_deposit_for_asset(vlt_hash);
+    let vlt_asset: Hash = Storage::new().load(VLT_ASSET_KEY).expect("vans");
+    let dep: optional<u64> = get_deposit_for_asset(vlt_asset);
     require(dep.is_some() && dep.unwrap() >= amount, "nodep");
     let rs: Storage = Storage::new();
     let id: u64 = rs.load(COUNTER_KEY).expect("idns");
@@ -80,8 +88,8 @@ entry unstake(stake_id: u64) -> u64 {
     require(pos.owner == caller, "ny");
     let topo: u64 = get_current_topoheight();
     require(topo >= pos.locked_until_topo, "locked");
-    let vlt_hash: Hash = Storage::new().load(VLT_CONTRACT_KEY).expect("vcns");
-    let ok: bool = transfer(caller, pos.amount, vlt_hash);
+    let vlt_asset: Hash = Storage::new().load(VLT_ASSET_KEY).expect("vans");
+    let ok: bool = transfer(caller, pos.amount, vlt_asset);
     require(ok, "txfail");
     let ws: Storage = Storage::new();
     ws.delete(get_stake_key(stake_id));

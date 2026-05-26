@@ -7,6 +7,7 @@ struct RevenueShare {
     name_string: string,
     total_shares: u64,
     distributed: u64,
+    asset_hash: Hash,
     active: bool
 }
 
@@ -38,7 +39,7 @@ fn get_holder_key(share_id: u64, holder: Address) -> string {
     return HOLDER_PREFIX + share_id.to_string(10u32) + holder.to_string();
 }
 
-entry create_share(name: string, total_shares: u64) -> u64 {
+entry create_share(name: string, total_shares: u64, asset: Hash) -> u64 {
     only_admin();
     require(total_shares > 0, "sharesgt0");
     let rs: Storage = Storage::new();
@@ -47,6 +48,7 @@ entry create_share(name: string, total_shares: u64) -> u64 {
         name_string: name,
         total_shares: total_shares,
         distributed: 0,
+        asset_hash: asset,
         active: true
     };
     let ws: Storage = Storage::new();
@@ -76,7 +78,7 @@ entry deposit_revenue(share_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let share: RevenueShare = rs.load(get_share_key(share_id)).expect("snf");
     require(share.active, "inactive");
-    let dep: optional<u64> = get_deposit_for_asset(Hash::zero());
+    let dep: optional<u64> = get_deposit_for_asset(share.asset_hash);
     require(dep.is_some() && dep.unwrap() > 0, "nodep");
     let amount: u64 = dep.unwrap();
     share.distributed += amount;
@@ -98,7 +100,7 @@ entry claim_dividends(share_id: u64) -> u64 {
     share.distributed -= amount;
     let ws: Storage = Storage::new();
     ws.store(get_share_key(share_id), share);
-    let ok: bool = transfer(caller, amount, Hash::zero());
+    let ok: bool = transfer(caller, amount, share.asset_hash);
     require(ok, "txfail");
     return amount;
 }

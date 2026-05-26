@@ -36,7 +36,8 @@ entry execute_price() -> u64 {
     require(current_topo >= pending_topo + TIMELOCK_BLOCKS, "timelock");
     let ws: Storage = Storage::new();
     ws.store(ACTIVE_PRICE_KEY, pending_price.unwrap());
-    ws.store(PENDING_PRICE_KEY, 0u64);
+    ws.delete(PENDING_PRICE_KEY);
+    ws.delete(PENDING_TOPO_KEY);
     return 0;
 }
 
@@ -53,7 +54,8 @@ entry get_pending_price() -> optional<u64> {
 entry cancel_pending() -> u64 {
     only_admin();
     let ws: Storage = Storage::new();
-    ws.store(PENDING_PRICE_KEY, 0u64);
+    ws.delete(PENDING_PRICE_KEY);
+    ws.delete(PENDING_TOPO_KEY);
     return 0;
 }
 

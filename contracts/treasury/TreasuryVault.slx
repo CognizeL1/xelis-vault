@@ -46,6 +46,16 @@ entry set_allocation(recipient: Address, share_bps: u64, asset: Hash) -> u64 {
     require(share_bps <= 10000, "max100pct");
     let rs: Storage = Storage::new();
     let count: u64 = rs.load(ALLOC_COUNT_KEY).unwrap_or(0);
+    let i: u64 = 0;
+    let total_bps: u64 = 0;
+    while i < count {
+        let existing: optional<Allocation> = rs.load(get_alloc_key(i));
+        if existing.is_some() && existing.unwrap().active {
+            total_bps += existing.unwrap().share_bps;
+        }
+        i += 1;
+    }
+    require(total_bps + share_bps <= 10000, "exceeds100pct");
     let alloc: Allocation = Allocation {
         recipient: recipient,
         share_bps: share_bps,
@@ -62,6 +72,10 @@ entry remove_allocation(index: u64) -> u64 {
     only_admin();
     let ws: Storage = Storage::new();
     ws.delete(get_alloc_key(index));
+    let count: u64 = ws.load(ALLOC_COUNT_KEY).unwrap_or(0);
+    if count > 0 {
+        ws.store(ALLOC_COUNT_KEY, count - 1);
+    }
     return 0;
 }
 

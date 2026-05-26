@@ -58,8 +58,8 @@ fn get_xel_price() -> u64 {
     let rs: Storage = Storage::new();
     let oh: Hash = rs.load(ORACLE_CONTRACT_KEY).expect("ocns");
     let oc: Contract = Contract::new(oh).expect("ocnf");
-    let prices: u64[] = oc.call(3u16, [Hash::zero()], {});
-    return prices[0];
+    let price: u64 = oc.call(2u16, [Hash::zero()], {});
+    return price;
 }
 
 fn require_healthy(cp: u64, bp: u64) {

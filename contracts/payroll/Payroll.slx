@@ -1,5 +1,6 @@
 const ADMIN_KEY: string = "a"
 const STREAM_PREFIX: string = "py"
+const FUNDED_PREFIX: string = "pf"
 const COUNTER_KEY: string = "n"
 
 struct PayrollStream {
@@ -30,6 +31,10 @@ fn get_stream_key(id: u64) -> string {
     return STREAM_PREFIX + id.to_string(10u32);
 }
 
+fn get_funded_key(id: u64) -> string {
+    return FUNDED_PREFIX + id.to_string(10u32);
+}
+
 entry create_stream(employee: Address, asset: Hash, amount_per_block: u64, total_blocks: u64) -> u64 {
     only_admin();
     require(amount_per_block > 0, "amtgt0");
@@ -57,9 +62,11 @@ entry fund_stream(stream_id: u64) -> u64 {
     let rs: Storage = Storage::new();
     let stream: PayrollStream = rs.load(get_stream_key(stream_id)).expect("pnf");
     require(stream.active, "inactive");
-    let total_cost: u64 = stream.amount_per_block * stream.total_blocks;
+    let total_needed: u64 = stream.amount_per_block * (stream.total_blocks - stream.blocks_paid);
     let dep: optional<u64> = get_deposit_for_asset(stream.asset_hash);
-    require(dep.is_some() && dep.unwrap() >= total_cost, "nodep");
+    require(dep.is_some() && dep.unwrap() >= total_needed, "nodep");
+    let ws: Storage = Storage::new();
+    ws.store(get_funded_key(stream_id), dep.unwrap());
     return 0;
 }
 
@@ -76,11 +83,15 @@ entry execute_payroll(stream_id: u64) -> u64 {
     let pending: u64 = blocks_due - stream.blocks_paid;
     let amount: u64 = stream.amount_per_block * pending;
     stream.blocks_paid += pending;
+    let funded: u64 = rs.load(get_funded_key(stream_id)).unwrap_or(0);
+    require(funded >= amount, "lowfunds");
     if stream.blocks_paid >= stream.total_blocks {
         stream.active = false;
     }
     let ws: Storage = Storage::new();
     ws.store(get_stream_key(stream_id), stream);
+    let remaining: u64 = funded - amount;
+    ws.store(get_funded_key(stream_id), remaining);
     let ok: bool = transfer(stream.employee, amount, stream.asset_hash);
     require(ok, "txfail");
     return amount;

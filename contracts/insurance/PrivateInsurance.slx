@@ -1,6 +1,7 @@
 const ADMIN_KEY: string = "a"
 const POOL_PREFIX: string = "pi"
 const MEMBER_PREFIX: string = "pm"
+const CLAIMED_PREFIX: string = "pc"
 const COUNTER_KEY: string = "n"
 
 struct InsurancePool {
@@ -36,6 +37,10 @@ fn get_pool_key(id: u64) -> string {
 
 fn get_member_key(pool_id: u64, addr: Address) -> string {
     return MEMBER_PREFIX + pool_id.to_string(10u32) + addr.to_string();
+}
+
+fn get_claimed_key(pool_id: u64, addr: Address) -> string {
+    return CLAIMED_PREFIX + pool_id.to_string(10u32) + addr.to_string();
 }
 
 entry create_pool(name: string, premium_asset: Hash, premium_amount: u64, coverage_asset: Hash, coverage_amount: u64, max_members: u64) -> u64 {
@@ -88,11 +93,14 @@ entry claim_payout(pool_id: u64) -> u64 {
     require(pool.active, "inactive");
     let is_member: optional<bool> = rs.load(get_member_key(pool_id, caller));
     require(is_member.is_some() && is_member.unwrap(), "notmember");
+    let already: optional<bool> = rs.load(get_claimed_key(pool_id, caller));
+    require(already.is_none(), "alrdy");
     require(pool.total_premiums >= pool.coverage_amount, "lowfunds");
     pool.total_premiums -= pool.coverage_amount;
     pool.total_payouts += pool.coverage_amount;
     let ws: Storage = Storage::new();
     ws.store(get_pool_key(pool_id), pool);
+    ws.store(get_claimed_key(pool_id, caller), true);
     let ok: bool = transfer(caller, pool.coverage_amount, pool.coverage_asset);
     require(ok, "txfail");
     return pool.coverage_amount;

@@ -93,8 +93,10 @@ entry check_kyc(record_id: u64) -> bool {
 }
 
 entry is_accredited(record_id: u64) -> bool {
+    let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
     let record: ComplianceRecord = rs.load(get_status_key(record_id)).expect("rnf");
+    require(record.address_val == caller, "notowner");
     if !record.accredited { return false; }
     return is_kyc_valid(record_id);
 }
