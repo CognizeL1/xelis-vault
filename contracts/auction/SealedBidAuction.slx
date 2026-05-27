@@ -22,6 +22,7 @@ struct Bid {
     bidder: Address,
     commitment: Hash,
     value: u64,
+    deposited: u64,
     revealed: bool,
     auction_id: u64
 }
@@ -86,11 +87,13 @@ entry submit_bid(auction_id: u64, commitment: Hash) -> u64 {
     require(topo <= auction.end_topo, "ended");
     let dep: optional<u64> = get_deposit_for_asset(Hash::zero());
     require(dep.is_some() && dep.unwrap() > 0, "nodep");
+    let deposit_amount: u64 = dep.unwrap();
     let bid_id: u64 = rs.load(BID_COUNTER_KEY).expect("idns");
     let bid: Bid = Bid {
         bidder: caller,
         commitment: commitment,
-        value: dep.unwrap(),
+        value: deposit_amount,
+        deposited: deposit_amount,
         revealed: false,
         auction_id: auction_id
     };
@@ -110,7 +113,10 @@ entry reveal_bid(bid_id: u64, actual_value: u64, nonce: u64) -> u64 {
     let topo: u64 = get_current_topoheight();
     require(topo > auction.end_topo, "bidphase");
     require(topo <= auction.reveal_end_topo, "revexpired");
-    let computed: Hash = xor_hashes(Hash::from_u256(actual_value as u256), Hash::from_u256(nonce as u256));
+    let vbytes: bytes = actual_value.to_le_bytes();
+    let nbytes: bytes = nonce.to_le_bytes();
+    vbytes.extend(nbytes);
+    let computed: Hash = Hash::blake3(vbytes);
     require(computed == bid.commitment, "invcommit");
     bid.value = actual_value;
     bid.revealed = true;
@@ -144,6 +150,25 @@ entry settle_auction(auction_id: u64) -> u64 {
         require(ok, "txfail3");
     }
     return 0;
+}
+
+entry refund_bid(bid_id: u64) -> u64 {
+    let caller: Address = get_caller().expect("nocaller");
+    let rs: Storage = Storage::new();
+    let bid: Bid = rs.load(get_bid_key(bid_id)).expect("bnf");
+    require(bid.bidder == caller, "ny");
+    require(bid.revealed, "noreveal");
+    require(bid.deposited > 0, "refunded");
+    let auction: Auction = rs.load(get_auction_key(bid.auction_id)).expect("anf");
+    require(auction.settled, "notsettled");
+    require(bid_id != auction.winner_bid_id, "winner");
+    let amount: u64 = bid.deposited;
+    bid.deposited = 0;
+    let ws: Storage = Storage::new();
+    ws.store(get_bid_key(bid_id), bid);
+    let ok: bool = transfer(caller, amount, Hash::zero());
+    require(ok, "txfail");
+    return amount;
 }
 
 entry get_auction(auction_id: u64) -> optional<Auction> {

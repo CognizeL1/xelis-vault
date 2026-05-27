@@ -93,7 +93,8 @@ entry borrow(pool_id: u64, collateral_asset: Hash) -> u64 {
     let col_val: u64 = col_raw * price / 100000000;
     let max_borrow: u64 = col_val * 10000 / pool.min_collateral_bps;
     let available: u64 = pool.total_liquidity - pool.total_borrows;
-    let borrow_amount: u64 = if max_borrow > available { available } else { max_borrow };
+    let borrow_amount: u64 = 0;
+    if max_borrow > available { borrow_amount = available; } else { borrow_amount = max_borrow; }
     require(borrow_amount > 0, "amtgt0");
     let caller: Address = get_caller().expect("nocaller");
     let borrow_id: u64 = rs.load(COUNTER_KEY).expect("idns");
@@ -125,7 +126,6 @@ entry repay(borrow_id: u64) -> u64 {
     let dep: optional<u64> = get_deposit_for_asset(pool.asset_hash);
     require(dep.is_some() && dep.unwrap() >= pos.amount, "nodep");
     let repay_amount: u64 = pos.amount;
-    pool.total_liquidity += repay_amount;
     pool.total_borrows -= repay_amount;
     pos.active = false;
     let ws: Storage = Storage::new();

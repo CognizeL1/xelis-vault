@@ -70,12 +70,13 @@ entry set_allocation(recipient: Address, share_bps: u64, asset: Hash) -> u64 {
 
 entry remove_allocation(index: u64) -> u64 {
     only_admin();
+    let rs: Storage = Storage::new();
+    let alloc_opt: optional<Allocation> = rs.load(get_alloc_key(index));
+    if alloc_opt.is_none() { return 0; }
+    let alloc: Allocation = alloc_opt.unwrap();
+    alloc.active = false;
     let ws: Storage = Storage::new();
-    ws.delete(get_alloc_key(index));
-    let count: u64 = ws.load(ALLOC_COUNT_KEY).unwrap_or(0);
-    if count > 0 {
-        ws.store(ALLOC_COUNT_KEY, count - 1);
-    }
+    ws.store(get_alloc_key(index), alloc);
     return 0;
 }
 

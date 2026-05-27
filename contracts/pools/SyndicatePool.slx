@@ -111,6 +111,20 @@ entry cancel_pool(pool_id: u64) -> u64 {
     return 0;
 }
 
+fn refund_investor(pool_id: u64, addr: Address) -> u64 {
+    let rs: Storage = Storage::new();
+    let invested: optional<u64> = rs.load(get_investor_key(pool_id, addr));
+    if invested.is_none() { return 0; }
+    let amount: u64 = invested.unwrap();
+    if amount == 0 { return 0; }
+    let pool: SyndicatePool = rs.load(get_pool_key(pool_id)).expect("pnf");
+    let ws: Storage = Storage::new();
+    ws.store(get_investor_key(pool_id, addr), 0u64);
+    let ok: bool = transfer(addr, amount, pool.target_asset);
+    if !ok { return 0; }
+    return amount;
+}
+
 entry refund(pool_id: u64) -> u64 {
     let caller: Address = get_caller().expect("nocaller");
     let rs: Storage = Storage::new();
@@ -118,19 +132,6 @@ entry refund(pool_id: u64) -> u64 {
     require(pool.closed, "notclosed");
     require(pool.raised < pool.target_amount, "targetmet");
     return refund_investor(pool_id, caller);
-}
-
-fn refund_investor(pool_id: u64, addr: Address) -> u64 {
-    let rs: Storage = Storage::new();
-    let invested: optional<u64> = rs.load(get_investor_key(pool_id, addr));
-    if invested.is_none() { return 0; }
-    let amount: u64 = invested.unwrap();
-    if amount == 0 { return 0; }
-    let ws: Storage = Storage::new();
-    ws.store(get_investor_key(pool_id, addr), 0u64);
-    let ok: bool = transfer(addr, amount, rs.load(get_pool_key(pool_id)).expect("pnf").target_asset);
-    if !ok { return 0; }
-    return amount;
 }
 
 entry get_pool(pool_id: u64) -> optional<SyndicatePool> {

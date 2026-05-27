@@ -1,6 +1,7 @@
 const ADMIN_KEY: string = "a"
 const SHARE_PREFIX: string = "rs"
 const HOLDER_PREFIX: string = "rh"
+const ASSIGNED_PREFIX: string = "ra"
 const COUNTER_KEY: string = "n"
 
 struct RevenueShare {
@@ -14,7 +15,8 @@ struct RevenueShare {
 struct ShareHolder {
     owner: Address,
     share_id: u64,
-    shares: u64
+    shares: u64,
+    claimed: u64
 }
 
 hook constructor() -> u64 {
@@ -37,6 +39,10 @@ fn get_share_key(id: u64) -> string {
 
 fn get_holder_key(share_id: u64, holder: Address) -> string {
     return HOLDER_PREFIX + share_id.to_string(10u32) + holder.to_string();
+}
+
+fn get_assigned_key(share_id: u64) -> string {
+    return ASSIGNED_PREFIX + share_id.to_string(10u32);
 }
 
 entry create_share(name: string, total_shares: u64, asset: Hash) -> u64 {
@@ -64,13 +70,30 @@ entry assign_shares(share_id: u64, holder: Address, amount: u64) -> u64 {
     require(share.active, "inactive");
     require(amount > 0, "amtgt0");
     require(amount <= share.total_shares, "exceed");
+    let assigned_key: string = get_assigned_key(share_id);
+    let already_assigned: u64 = rs.load(assigned_key).unwrap_or(0);
+    let existing: optional<ShareHolder> = rs.load(get_holder_key(share_id, holder));
+    let current_shares: u64 = 0;
+    let current_claimed: u64 = 0;
+    if existing.is_some() {
+        let existing_rec: ShareHolder = existing.unwrap();
+        current_shares = existing_rec.shares;
+        current_claimed = existing_rec.claimed;
+    }
+    let net_new: u64 = 0;
+    if amount > current_shares {
+        net_new = amount - current_shares;
+    }
+    require(already_assigned + net_new <= share.total_shares, "oversub");
     let holder_rec: ShareHolder = ShareHolder {
         owner: holder,
         share_id: share_id,
-        shares: amount
+        shares: amount,
+        claimed: current_claimed
     };
     let ws: Storage = Storage::new();
     ws.store(get_holder_key(share_id, holder), holder_rec);
+    ws.store(assigned_key, already_assigned + net_new);
     return 0;
 }
 
@@ -95,11 +118,12 @@ entry claim_dividends(share_id: u64) -> u64 {
     let holder_rec: ShareHolder = rs.load(get_holder_key(share_id, caller)).expect("noshares");
     require(holder_rec.owner == caller, "ny");
     require(holder_rec.shares > 0, "noshares");
-    let amount: u64 = share.distributed * holder_rec.shares / share.total_shares;
-    require(amount > 0, "noamt");
-    share.distributed -= amount;
+    let total_entitled: u64 = share.distributed * holder_rec.shares / share.total_shares;
+    require(total_entitled > holder_rec.claimed, "noamt");
+    let amount: u64 = total_entitled - holder_rec.claimed;
+    holder_rec.claimed = holder_rec.claimed + amount;
     let ws: Storage = Storage::new();
-    ws.store(get_share_key(share_id), share);
+    ws.store(get_holder_key(share_id, caller), holder_rec);
     let ok: bool = transfer(caller, amount, share.asset_hash);
     require(ok, "txfail");
     return amount;
